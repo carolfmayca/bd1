@@ -22,10 +22,16 @@ CREATE TABLE Reviews (
     helpful INTEGER
 );
 
-CREATE TABLE Categories(
-    id SERIAL PRIMARY KEY,
-    general_category VARCHAR(100),
-    subcategory VARCHAR(100)[],
-    specific_category VARCHAR(100)
+CREATE TABLE Categories (
+    id_categorie INT PRIMARY KEY,              
+    categorie_name VARCHAR(255) NOT NULL,                
+    id_father INT REFERENCES Categories(id_categorie)  
 );
+
+CREATE TABLE Categorie_product (
+    id_product INT REFERENCES Produtos(Id) ON DELETE CASCADE,
+    id_category INT REFERENCES Categories(id_categorie) ON DELETE CASCADE,
+    PRIMARY KEY (id_product, id_category)
+);
+
 
