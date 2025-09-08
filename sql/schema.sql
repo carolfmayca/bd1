@@ -3,6 +3,7 @@ CREATE SCHEMA IF NOT EXISTS ecommerce AUTHORIZATION postgres;
 CREATE TABLE Produtos (
     Id SERIAL PRIMARY KEY,
     ASIN VARCHAR(20) UNIQUE NOT NULL,
+    title TEXT,
     "group" VARCHAR(100),
     salesrank INTEGER,
     similar TEXT,

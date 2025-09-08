@@ -1,0 +1,118 @@
+import os
+import psycopg2
+import re
+
+def create_schema():
+    """
+    Conecta ao banco de dados PostgreSQL e executa o script schema.sql
+    para criar as tabelas.
+    """
+    conn = None
+    try:
+        # Conecta ao banco de dados usando as variáveis de ambiente
+        # que foram definidas no docker-compose.yml
+        conn = psycopg2.connect(
+            host=os.environ.get('PGHOST', 'db'),
+            port=os.environ.get('PGPORT', 5432),
+            user=os.environ.get('PGUSER', 'postgres'),
+            password=os.environ.get('PGPASSWORD', 'postgres'),
+            dbname=os.environ.get('PGDATABASE', 'ecommerce')
+        )
+        
+        # Abre uma sessão para executar os comandos
+        with conn.cursor() as cur:
+            # O caminho para o schema.sql precisa ser relativo
+            # à localização de onde o script é executado.
+            # Se tp1_3.2.py está em /app/src e schema.sql em /app/sql,
+            # o caminho relativo seria '../sql/schema.sql'
+            with open('../sql/schema.sql', 'r') as f:
+                sql_script = f.read()
+                cur.execute(sql_script)
+        
+        # Confirma as alterações no banco de dados
+        conn.commit()
+        print("Esquema do banco de dados criado com sucesso.")
+
+    except psycopg2.Error as e:
+        print(f"Erro ao conectar ou criar o esquema: {e}")
+        if conn:
+            conn.rollback() # Reverte as alterações em caso de erro
+
+    finally:
+        # Garante que a conexão seja fechada
+        if conn:
+            conn.close()
+
+def insert_data():
+    """
+    Função para inserir dados de exemplo nas tabelas criadas.
+    """
+    i = 0
+    with open('data/snap_amazon.txt', 'r') as f:
+            arquivo = (line for line in f.read().splitlines() if line.strip())
+            produtos = []
+            for line in arquivo:
+                if line.startswith('Id'):
+                    id_ = line.split(':')[1].strip()
+                    line = next(arquivo)
+                    asin = line.split(':')[1].strip()
+                    line = next(arquivo)
+                    if "discontinued product" in line:
+                        print(i)
+                        i+=1
+                        title = group = salesrank = similar = numCategories = numReviews = downloaded = avg_rating = None
+                    else:
+                        title = ":".join(line.split(':')[1:]).strip()  # pois o título pode ter ':' dentro
+                        line = next(arquivo)
+                        group = line.split(':')[1].strip()
+                        line = next(arquivo)
+                        salesrank = line.split(':')[1].strip()
+                        line = next(arquivo)
+                        similar = line.split(':')[1].strip()
+                        line = next(arquivo)
+                        numCategories = line.split(':')[1].strip()
+                        categories = []
+                        print(line)
+                        for _ in range(int(numCategories) +1):
+                            line = next(arquivo)
+                            categories.append(line.strip())
+                        print(id_, line)
+                        numReviews = line.split(':')[2][1].strip()
+                        downloaded = line.split(':')[3][1].strip()
+                        avg_rating = line.split(':')[4][1].strip()
+                        reviews = []
+                        for _ in range(int(numReviews)):
+                            line = next(arquivo)
+                            reviews.append(line.strip())
+                    produtos.append((id_, asin, title, group, salesrank, similar, numCategories, numReviews, downloaded, avg_rating))
+            print(produtos[:5])
+
+
+    # conn = None
+    # try:
+        # conn = psycopg2.connect(
+            # host=os.environ.get('PGHOST', 'db'),
+            # port=os.environ.get('PGPORT', 5432),
+            # user=os.environ.get('PGUSER', 'postgres'),
+            # password=os.environ.get('PGPASSWORD', 'postgres'),
+            # dbname=os.environ.get('PGDATABASE', 'ecommerce')
+        # )
+        # 
+        # with conn.cursor() as cur:
+            # with open('data/snap_amazon.txt', 'r') as f:
+                # arquivo = [line for line in f.read().splitlines() if line.strip()]
+                # for line in arquivo:
+                    # if line.startswith('Id'):
+                        # continue
+                        # id_ = line.split(':')[1]
+                        # print(id_)
+    # finally:
+        # if conn:
+            # conn.close()
+                
+
+
+if __name__ == "__main__":
+    # create_schema()
+    insert_data()
+
