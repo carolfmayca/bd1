@@ -30,9 +30,10 @@ CREATE TABLE Categories (
 );
 
 CREATE TABLE Categorie_product (
-    id_product INT REFERENCES Produtos(Id) ON DELETE CASCADE,
+    asin VARCHAR(20) REFERENCES Produtos(ASIN) ON DELETE CASCADE,
     id_category INT REFERENCES Categories(id_categorie) ON DELETE CASCADE,
-    PRIMARY KEY (id_product, id_category)
+    PRIMARY KEY (asin, id_category)
 );
+
 
 
