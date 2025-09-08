@@ -14,7 +14,7 @@ CREATE TABLE Produtos (
 
 CREATE TABLE Reviews (
     id SERIAL PRIMARY KEY,
-    ASIN VARCHAR(20) REFERENCES Produtos(ASIN),
+    ASIN VARCHAR(20) REFERENCES Produtos(ASIN) ON DELETE CASCADE,
     "date" DATE,
     customer VARCHAR(50),
     rating INTEGER,
