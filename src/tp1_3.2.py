@@ -43,6 +43,16 @@ def create_schema():
         if conn:
             conn.close()
 
+def find_next_line(iterator, text):
+    """
+    Avança o iterador até encontrar uma linha que comece com o texto desejado.
+    Retorna a linha encontrada ou None se o arquivo terminar antes de encontrar.
+    """
+    for line in iterator:
+        if  text in line:
+            return line
+    return None
+
 def insert_data():
     """
     Função para inserir dados de exemplo nas tabelas criadas.
@@ -54,29 +64,26 @@ def insert_data():
             for line in arquivo:
                 if line.startswith('Id'):
                     id_ = line.split(':')[1].strip()
-                    line = next(arquivo)
+                    line = find_next_line(arquivo, 'ASIN')
                     asin = line.split(':')[1].strip()
                     line = next(arquivo)
                     if "discontinued product" in line:
-                        print(i)
                         i+=1
                         title = group = salesrank = similar = numCategories = numReviews = downloaded = avg_rating = None
                     else:
                         title = ":".join(line.split(':')[1:]).strip()  # pois o título pode ter ':' dentro
-                        line = next(arquivo)
+                        line = find_next_line(arquivo, 'group')
                         group = line.split(':')[1].strip()
-                        line = next(arquivo)
+                        line = find_next_line(arquivo, 'salesrank')
                         salesrank = line.split(':')[1].strip()
-                        line = next(arquivo)
+                        line = find_next_line(arquivo, 'similar')
                         similar = line.split(':')[1].strip()
-                        line = next(arquivo)
+                        line = find_next_line(arquivo, 'categories')
                         numCategories = line.split(':')[1].strip()
                         categories = []
-                        print(line)
                         for _ in range(int(numCategories) +1):
                             line = next(arquivo)
                             categories.append(line.strip())
-                        print(id_, line)
                         numReviews = line.split(':')[2][1].strip()
                         downloaded = line.split(':')[3][1].strip()
                         avg_rating = line.split(':')[4][1].strip()
@@ -84,8 +91,7 @@ def insert_data():
                         for _ in range(int(numReviews)):
                             line = next(arquivo)
                             reviews.append(line.strip())
-                    produtos.append((id_, asin, title, group, salesrank, similar, numCategories, numReviews, downloaded, avg_rating))
-            print(produtos[:5])
+                    produtos.append({'id':id_, 'asin':asin, 'title':title, 'group':group, 'salesrank':salesrank, 'similar':similar, 'numCategories':numCategories, 'numReviews':numReviews, 'downloaded':downloaded, 'avg_rating':avg_rating})
 
 
     # conn = None
