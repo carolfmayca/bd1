@@ -39,7 +39,7 @@ CREATE TABLE Similar (
     asin_product VARCHAR(20) REFERENCES Products(ASIN) ON DELETE CASCADE,
     id_similar INT NOT NULL,
     asin_similar VARCHAR(20) REFERENCES Products(ASIN) ON DELETE CASCADE,
-    PRIMARY KEY (asin_product, id_similar)
+    PRIMARY KEY (asin_product, asin_similar)
 );
 
 

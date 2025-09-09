@@ -93,7 +93,6 @@ def insert_data():
                             reviews.append(line.strip())
                     produtos.append({'id':id_, 'asin':asin, 'title':title, 'group':group, 'salesrank':salesrank, 'similar':similar, 'numCategories':numCategories, 'numReviews':numReviews, 'downloaded':downloaded, 'avg_rating':avg_rating})
 
-
     # conn = None
     # try:
         # conn = psycopg2.connect(
