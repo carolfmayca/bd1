@@ -94,7 +94,7 @@ def insert_reviews(asin,reviews):
                 dbname=os.environ.get('PGDATABASE', 'ecommerce')
             )
             with conn.cursor() as cur:
-                cur.execute(sql, asin, reviews[0], reviews[2], reviews[4], reviews[6], reviews[8])
+                cur.execute(sql, (asin, reviews[0], reviews[2], reviews[4], reviews[6], reviews[8]))
                 conn.commit()
         except psycopg2.Error as e:
             print(f"Erro ao inserir produto: {e}")
@@ -102,6 +102,73 @@ def insert_reviews(asin,reviews):
             if conn:
                 conn.close()
 
+def find_id(categorie):
+    if categorie is None:
+        return None
+    pattern = r'([^|\[]*?)\s*\[(\d+)\]'
+    categorie = str(categorie)
+    match = re.findall(pattern, categorie)
+    if match:
+        return match
+    return None
+
+def insert_general_categories(categories):
+    categorie = find_id(categories)
+    if categorie is not None:
+        sql = """
+            INSERT INTO GeneralCategories (id_category, categorie_name, id_father)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (id_category) DO NOTHING;
+            """
+        conn = None
+        try:
+            conn = psycopg2.connect(
+                host=os.environ.get('PGHOST', 'db'),
+                port=os.environ.get('PGPORT', 5432),
+                user=os.environ.get('PGUSER', 'postgres'),
+                password=os.environ.get('PGPASSWORD', 'postgres'),
+                dbname=os.environ.get('PGDATABASE', 'ecommerce')
+            )
+            with conn.cursor() as cur:
+                cur.execute(sql, (categorie[0][1], categorie[0][0], None))
+                for i in range(1,len(categorie)):
+                    cur.execute(sql, (categorie[i][1], categorie[i][0], categorie[i-1][1]))
+                conn.commit()
+        except psycopg2.Error as e:
+            print(f"Erro ao inserir categoria: {e}")
+            if conn:
+                conn.rollback()
+        finally:
+            if conn:
+                conn.close()
+
+def insert_categories(asin,categories):
+    categorie = find_id(categories)
+    if categorie is not None:
+        sql = """
+            INSERT INTO Categorie_product (asin, id_category)
+            VALUES (%s, %s)
+            ON CONFLICT (asin, id_category) DO NOTHING;
+            """
+        conn = None
+        try:
+            conn = psycopg2.connect(
+                host=os.environ.get('PGHOST', 'db'),
+                port=os.environ.get('PGPORT', 5432),
+                user=os.environ.get('PGUSER', 'postgres'),
+                password=os.environ.get('PGPASSWORD', 'postgres'),
+                dbname=os.environ.get('PGDATABASE', 'ecommerce')
+            )
+            with conn.cursor() as cur:
+                for i in categorie:
+                    cur.execute(sql, (asin, i[1]))
+        except psycopg2.Error as e:
+            print(f"Erro ao inserir categoria: {e}")
+            if conn:
+                conn.rollback()
+        finally:
+            if conn:
+                conn.close()
 
 def insert_data():
     """
@@ -132,7 +199,7 @@ def insert_data():
                         categories = []
                         for _ in range(int(numCategories)):
                             line = next(arquivo)
-                            generalCategories.update(line.split('|'))
+                            generalCategories.add(line)
                             categories.append([line.strip()])
                         line = find_next_line(arquivo, 'reviews')
                         numReviews = line.split(':')[2][1].strip()
@@ -146,16 +213,14 @@ def insert_data():
                                      'similar':similar, 'numCategories':numCategories,'categories': categories,\
                                      'numReviews':numReviews, 'reviews':reviews, 'downloaded':downloaded, \
                                      'avg_rating':avg_rating})
-    for i in generalCategories:
-        print(i)
-    # for i in produtos:
-        # insert_products(i)
-        # for j in i['reviews']:
-            # insert_reviews(i['id'],str(j).split())
-        # for j in i['categories']:
-            # insert_categories(i['id'],str(j).split())
-
-                
+    # for i in generalCategories:
+        # insert_general_categories(i)
+    for i in produtos:
+        insert_products(i)
+        for j in i['reviews']:
+            insert_reviews(i['asin'],str(j).split())
+        for j in i['categories']:
+            insert_categories(i['asin'],j)
 
 
 if __name__ == "__main__":
