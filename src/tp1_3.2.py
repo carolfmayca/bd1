@@ -54,6 +54,9 @@ def find_next_line(iterator, text):
     return None
 
 def insert_products(produto):
+    """
+    Insere um produto na tabela Products.
+    """
     sql = """
         INSERT INTO Products (Id, ASIN, title, "group", salesrank, similar, numCategories, numReviews, downloaded, avg_rating)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -78,6 +81,9 @@ def insert_products(produto):
             conn.close()
 
 def insert_reviews(asin,reviews):
+    """
+    Insere uma avaliação na tabela Reviews.
+    """
     if reviews is not None:
         sql = """
             INSERT INTO Reviews (ASIN, "date", customer, rating, votes, helpful)
@@ -103,6 +109,9 @@ def insert_reviews(asin,reviews):
                 conn.close()
 
 def find_id(categorie):
+    """
+    Encontra os IDs das categorias em uma string de categorias.
+    Retorna uma lista de tuplas (nome_da_categoria, id_da_categoria)."""
     if categorie is None:
         return None
     pattern = r'([^|\[]*?)\s*\[(\d+)\]'
@@ -144,6 +153,9 @@ def insert_general_categories(categories):
                 conn.close()
 
 def insert_categories(asin,categories):
+    """
+    Insere categorias na tabela Categorie_product.
+    """
     categorie = find_id(categories)
     if categorie is not None:
         sql = """
@@ -172,6 +184,9 @@ def insert_categories(asin,categories):
                 conn.close()
 
 def insert_similar(asin, similar):
+    """
+    Insere produtos similares na tabela Similar.
+    """
     if similar is not None:
         if similar[0] != []:
             sql = """
@@ -202,49 +217,51 @@ def insert_similar(asin, similar):
 
 def insert_data():
     """
-    Função para inserir dados de exemplo nas tabelas criadas.
+    Função para inserir dados nas tabelas criadas.
     """
     with open('data/snap_amazon.txt', 'r') as f:
-            arquivo = (line for line in f.read().splitlines() if line.strip())
-            produtos = []
-            generalCategories = set()
-            for line in arquivo:
-                if line.startswith('Id'):
-                    id_ = line.split(':')[1].strip()
-                    line = find_next_line(arquivo, 'ASIN')
-                    asin = line.split(':')[1].strip()
-                    line = next(arquivo)
-                    title = group = salesrank = similar = categories = reviews = numCategories = numReviews = downloaded = avg_rating = None
-                    if not "discontinued product" in line:
-                        title = ":".join(line.split(':')[1:]).strip()  # pois o título pode ter ':' dentro
-                        line = find_next_line(arquivo, 'group')
-                        group = line.split(':')[1].strip()
-                        line = find_next_line(arquivo, 'salesrank')
-                        salesrank = line.split(':')[1].strip()
-                        line = find_next_line(arquivo, 'similar')
-                        similar = line.split(':')[1].strip()
-                        line = find_next_line(arquivo, 'categories')
-                        numCategories = line.split(':')[1].strip()
-                        categories = []
-                        for _ in range(int(numCategories)):
-                            line = next(arquivo)
-                            generalCategories.add(line)
-                            categories.append([line.strip()])
-                        line = find_next_line(arquivo, 'reviews')
-                        numReviews = line.split(':')[2][1].strip()
-                        downloaded = line.split(':')[3][1].strip()
-                        avg_rating = line.split(':')[4][1].strip()
-                        reviews = []
-                        for _ in range(int(numReviews)):
-                            line = next(arquivo)
-                            reviews.append([line.strip()])
-                    produtos.append({'id':id_, 'asin':asin, 'title':title, 'group':group, 'salesrank':salesrank,\
-                                     'similar':similar, 'numCategories':numCategories,'categories': categories,\
-                                     'numReviews':numReviews, 'reviews':reviews, 'downloaded':downloaded, \
-                                     'avg_rating':avg_rating})
-    for i in generalCategories:
+        arquivo = (line for line in f.read().splitlines() if line.strip())
+        produtos = []
+        general_categories = set()
+        for line in arquivo:
+            if line.startswith('Id'):
+                id_ = line.split(':')[1].strip()
+                line = find_next_line(arquivo, 'ASIN')
+                asin = line.split(':')[1].strip()
+                line = next(arquivo)
+                title = group = salesrank = similar = None
+                categories = reviews = num_categories = num_reviews = downloaded = avg_rating = None
+                if not "discontinued product" in line:
+                    title = ":".join(line.split(':')[1:]).strip()
+                    line = find_next_line(arquivo, 'group')
+                    group = line.split(':')[1].strip()
+                    line = find_next_line(arquivo, 'salesrank')
+                    salesrank = line.split(':')[1].strip()
+                    line = find_next_line(arquivo, 'similar')
+                    similar = line.split(':')[1].strip()
+                    line = find_next_line(arquivo, 'categories')
+                    num_categories = line.split(':')[1].strip()
+                    categories = []
+                    for _ in range(int(num_categories)):
+                        line = next(arquivo)
+                        general_categories.add(line)
+                        categories.append([line.strip()])
+                    line = find_next_line(arquivo, 'reviews')
+                    num_reviews = line.split(':')[2][1].strip()
+                    downloaded = line.split(':')[3][1].strip()
+                    avg_rating = line.split(':')[4][1].strip()
+                    reviews = []
+                    for _ in range(int(num_reviews)):
+                        line = next(arquivo)
+                        reviews.append([line.strip()])
+                produtos.append({'id':id_, 'asin':asin, 'title':title, 'group':group, \
+                                'salesrank':salesrank, 'similar':similar, \
+                                'numCategories':num_categories, 'categories': categories,\
+                                 'numReviews':num_reviews, 'reviews':reviews, \
+                                 'downloaded':downloaded, 'avg_rating':avg_rating})
+    
+    for i in general_categories:
         insert_general_categories(i)
-        
     for i in produtos:
         insert_products(i)
         if i['reviews'] is not None:

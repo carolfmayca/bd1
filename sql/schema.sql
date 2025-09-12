@@ -1,8 +1,8 @@
 CREATE SCHEMA IF NOT EXISTS ecommerce AUTHORIZATION postgres;
 
-CREATE TABLE Products (
-    Id SERIAL PRIMARY KEY,
-    ASIN VARCHAR(20) UNIQUE NOT NULL,
+CREATE TABLE IF NOT EXISTS Products (
+    Id SERIAL UNIQUE NOT NULL,
+    ASIN VARCHAR(20) PRIMARY KEY,
     title TEXT,
     "group" VARCHAR(100),
     salesrank INTEGER,
@@ -13,7 +13,7 @@ CREATE TABLE Products (
     avg_rating NUMERIC(3, 2)
 );
 
-CREATE TABLE Reviews (
+CREATE TABLE IF NOT EXISTS Reviews (
     id SERIAL PRIMARY KEY,
     ASIN VARCHAR(20) REFERENCES Products(ASIN) ON DELETE CASCADE,
     "date" DATE,
@@ -23,21 +23,21 @@ CREATE TABLE Reviews (
     helpful INTEGER
 );
 
-CREATE TABLE Categories (
+CREATE TABLE IF NOT EXISTS Categories (
     id_categorie INT PRIMARY KEY,              
     categorie_name VARCHAR(255) NOT NULL,                
     id_father INT REFERENCES Categories(id_categorie)  
 );
 
-CREATE TABLE Categorie_product (
+CREATE TABLE IF NOT EXISTS Categorie_product (
     asin VARCHAR(20) REFERENCES Products(ASIN) ON DELETE CASCADE,
     id_category INT REFERENCES Categories(id_categorie) ON DELETE CASCADE,
     PRIMARY KEY (asin, id_category)
 );
 
-CREATE TABLE Similar (
-    asin_product VARCHAR(20) REFERENCES Products(ASIN) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS Similar (
     id_similar INT NOT NULL,
+    asin_product VARCHAR(20) REFERENCES Products(ASIN) ON DELETE CASCADE,
     asin_similar VARCHAR(20) REFERENCES Products(ASIN) ON DELETE CASCADE,
     PRIMARY KEY (asin_product, asin_similar)
 );
