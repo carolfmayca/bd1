@@ -242,9 +242,9 @@ def insert_data():
                                      'similar':similar, 'numCategories':numCategories,'categories': categories,\
                                      'numReviews':numReviews, 'reviews':reviews, 'downloaded':downloaded, \
                                      'avg_rating':avg_rating})
-    for i in produtos:
-        if i['similar'] is not None:
-            print(i['similar'].split())
+    for i in generalCategories:
+        insert_general_categories(i)
+        
     for i in produtos:
         insert_products(i)
         if i['reviews'] is not None:
@@ -261,4 +261,3 @@ def insert_data():
 if __name__ == "__main__":
     create_schema()
     insert_data()
-
