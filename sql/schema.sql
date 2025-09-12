@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS Products (
     title TEXT,
     "group" VARCHAR(100),
     salesrank INTEGER,
-    similar TEXT,
+    numSimilar INTEGER,
     numCategories TEXT,
     numReviews INTEGER,
     downloaded INTEGER,
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS Reviews (
 
 CREATE TABLE IF NOT EXISTS Categories (
     id_categorie INT PRIMARY KEY,              
-    categorie_name VARCHAR(255) NOT NULL,                
+    categorie_name VARCHAR(255),                
     id_father INT REFERENCES Categories(id_categorie)  
 );
 

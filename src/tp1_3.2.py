@@ -2,46 +2,21 @@ import os
 import psycopg2
 import re
 
-def create_schema():
+def create_schema(conn):
     """
-    Conecta ao banco de dados PostgreSQL e executa o script schema.sql
-    para criar as tabelas.
+    Cria o esquema do banco de dados executando o script SQL.
     """
-    conn = None
-    try:
-        # Conecta ao banco de dados usando as variáveis de ambiente
-        # que foram definidas no docker-compose.yml
-        conn = psycopg2.connect(
-            host=os.environ.get('PGHOST', 'db'),
-            port=os.environ.get('PGPORT', 5432),
-            user=os.environ.get('PGUSER', 'postgres'),
-            password=os.environ.get('PGPASSWORD', 'postgres'),
-            dbname=os.environ.get('PGDATABASE', 'ecommerce')
-        )
-        
-        # Abre uma sessão para executar os comandos
-        with conn.cursor() as cur:
-            # O caminho para o schema.sql precisa ser relativo
-            # à localização de onde o script é executado.
-            # Se tp1_3.2.py está em /app/src e schema.sql em /app/sql,
-            # o caminho relativo seria '../sql/schema.sql'
-            with open('../sql/schema.sql', 'r') as f:
-                sql_script = f.read()
-                cur.execute(sql_script)
-        
-        # Confirma as alterações no banco de dados
-        conn.commit()
-        print("Esquema do banco de dados criado com sucesso.")
+    # Abre uma sessão para executar os comandos
+    with conn.cursor() as cur:
+        # O caminho para o schema.sql precisa ser relativo
+        # à localização de onde o script é executado.
+        # Se tp1_3.2.py está em /app/src e schema.sql em /app/sql,
+        # o caminho relativo seria '../sql/schema.sql'
+        with open('../sql/schema.sql', 'r') as f:
+            sql_script = f.read()
+            cur.execute(sql_script)
+    print("Esquema do banco de dados criado com sucesso.")
 
-    except psycopg2.Error as e:
-        print(f"Erro ao conectar ou criar o esquema: {e}")
-        if conn:
-            conn.rollback() # Reverte as alterações em caso de erro
-
-    finally:
-        # Garante que a conexão seja fechada
-        if conn:
-            conn.close()
 
 def find_next_line(iterator, text):
     """
@@ -53,60 +28,31 @@ def find_next_line(iterator, text):
             return line
     return None
 
-def insert_products(produto):
+def insert_products(conn, produto):
     """
     Insere um produto na tabela Products.
     """
     sql = """
-        INSERT INTO Products (Id, ASIN, title, "group", salesrank, similar, numCategories, numReviews, downloaded, avg_rating)
+        INSERT INTO Products (Id, ASIN, title, "group", salesrank, numSimilar, numCategories, numReviews, downloaded, avg_rating)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (ASIN) DO NOTHING;
         """
-    conn = None
-    try:
-        conn = psycopg2.connect(
-            host=os.environ.get('PGHOST', 'db'),
-            port=os.environ.get('PGPORT', 5432),
-            user=os.environ.get('PGUSER', 'postgres'),
-            password=os.environ.get('PGPASSWORD', 'postgres'),
-            dbname=os.environ.get('PGDATABASE', 'ecommerce')
-        )
-        with conn.cursor() as cur:
-            cur.execute(sql, (produto['id'], produto['asin'], produto['title'], produto['group'], produto['salesrank'], produto['similar'][0], produto['numCategories'], produto['numReviews'], produto['downloaded'], produto['avg_rating']))
-            conn.commit()
-    except psycopg2.Error as e:
-        print(f"Erro ao inserir produto: {e}")
-    finally:
-        if conn:
-            conn.close()
+    with conn.cursor() as cur:
+        cur.execute(sql, (produto['id'], produto['asin'], produto['title'], produto['group'], produto['salesrank'], produto['similar'][0], produto['numCategories'], produto['numReviews'], produto['downloaded'], produto['avg_rating']))
 
-def insert_reviews(asin,reviews):
+def insert_reviews(conn,asin,reviews):
     """
     Insere uma avaliação na tabela Reviews.
     """
     if reviews is not None:
         sql = """
             INSERT INTO Reviews (ASIN, "date", customer, rating, votes, helpful)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES ( %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO NOTHING;
             """
-        conn = None
-        try:
-            conn = psycopg2.connect(
-                host=os.environ.get('PGHOST', 'db'),
-                port=os.environ.get('PGPORT', 5432),
-                user=os.environ.get('PGUSER', 'postgres'),
-                password=os.environ.get('PGPASSWORD', 'postgres'),
-                dbname=os.environ.get('PGDATABASE', 'ecommerce')
-            )
-            with conn.cursor() as cur:
-                cur.execute(sql, (asin, reviews[0], reviews[2], reviews[4], reviews[6], reviews[8]))
-                conn.commit()
-        except psycopg2.Error as e:
-            print(f"Erro ao inserir produto: {e}")
-        finally:
-            if conn:
-                conn.close()
+        with conn.cursor() as cur:
+            cur.execute(sql, (asin, reviews[0], reviews[2], reviews[4], reviews[6], reviews[8]))
+
 
 def find_id(categorie):
     """
@@ -121,7 +67,7 @@ def find_id(categorie):
         return match
     return None
 
-def insert_general_categories(categories):
+def insert_general_categories(conn,categories):
     categorie = find_id(categories)
     if categorie is not None:
         sql = """
@@ -129,30 +75,14 @@ def insert_general_categories(categories):
             VALUES (%s, %s, %s)
             ON CONFLICT (id_category) DO NOTHING;
             """
-        conn = None
-        try:
-            conn = psycopg2.connect(
-                host=os.environ.get('PGHOST', 'db'),
-                port=os.environ.get('PGPORT', 5432),
-                user=os.environ.get('PGUSER', 'postgres'),
-                password=os.environ.get('PGPASSWORD', 'postgres'),
-                dbname=os.environ.get('PGDATABASE', 'ecommerce')
-            )
-            with conn.cursor() as cur:
-                cat_name = categorie[0][0] if categorie[0][0] != "" else None
-                cur.execute(sql, (categorie[0][1], cat_name, None))
-                for i in range(1,len(categorie)):
-                    cur.execute(sql, (categorie[i][1], cat_name, categorie[i-1][1]))
-                conn.commit()
-        except psycopg2.Error as e:
-            print(f"Erro ao inserir categoria: {e}")
-            if conn:
-                conn.rollback()
-        finally:
-            if conn:
-                conn.close()
+        with conn.cursor() as cur:
+            cat_name = categorie[0][0] if categorie[0][0] != "" else None
+            cur.execute(sql, (categorie[0][1], cat_name, None))
+            for i in range(1,len(categorie)):
+                cat_name = categorie[i][0] if categorie[i][0] != "" else None
+                cur.execute(sql, (categorie[i][1], cat_name, categorie[i-1][1]))
 
-def insert_categories(asin,categories):
+def insert_categories(conn,asin,categories):
     """
     Insere categorias na tabela Categorie_product.
     """
@@ -163,59 +93,25 @@ def insert_categories(asin,categories):
             VALUES (%s, %s)
             ON CONFLICT (asin, id_category) DO NOTHING;
             """
-        conn = None
-        try:
-            conn = psycopg2.connect(
-                host=os.environ.get('PGHOST', 'db'),
-                port=os.environ.get('PGPORT', 5432),
-                user=os.environ.get('PGUSER', 'postgres'),
-                password=os.environ.get('PGPASSWORD', 'postgres'),
-                dbname=os.environ.get('PGDATABASE', 'ecommerce')
-            )
-            with conn.cursor() as cur:
-                for i in categorie:
-                    cur.execute(sql, (asin, i[1]))
-        except psycopg2.Error as e:
-            print(f"Erro ao inserir categoria: {e}")
-            if conn:
-                conn.rollback()
-        finally:
-            if conn:
-                conn.close()
+        with conn.cursor() as cur:
+            for i in categorie:
+                cur.execute(sql, (asin, i[1]))
 
-def insert_similar(asin, similar):
+
+def insert_similar(conn, asin, similar):
     """
     Insere produtos similares na tabela Similar.
     """
-    if similar is not None:
-        if similar[0] != []:
-            sql = """
-                INSERT INTO Similar (asin_product,id_similar,asin_similar)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (asin_product, asin_similar) DO NOTHING;
-                """
-            conn = None
-            try:
-                conn = psycopg2.connect(
-                    host=os.environ.get('PGHOST', 'db'),
-                    port=os.environ.get('PGPORT', 5432),
-                    user=os.environ.get('PGUSER', 'postgres'),
-                    password=os.environ.get('PGPASSWORD', 'postgres'),
-                    dbname=os.environ.get('PGDATABASE', 'ecommerce')
-                )
-                with conn.cursor() as cur:
-                    for i in similar[1:]:
-                        cur.execute(sql, (asin, i[0], i[1]))
-                conn.commit()
-            except psycopg2.Error as e:
-                print(f"Erro ao inserir similar: {e}")
-                if conn:
-                    conn.rollback()
-            finally:
-                if conn:
-                    conn.close()
+    sql = """
+        INSERT INTO Similar (asin_product,asin_similar)
+        VALUES (%s, %s)
+        ON CONFLICT (asin_product, asin_similar) DO NOTHING;
+        """
+    with conn.cursor() as cur:
+        for i in similar[1:]:
+            cur.execute(sql, (asin, i))
 
-def insert_data():
+def insert_data(conn):
     """
     Função para inserir dados nas tabelas criadas.
     """
@@ -255,26 +151,47 @@ def insert_data():
                         line = next(arquivo)
                         reviews.append([line.strip()])
                 produtos.append({'id':id_, 'asin':asin, 'title':title, 'group':group, \
-                                'salesrank':salesrank, 'similar':similar, \
+                                'salesrank':salesrank,'similar':similar, \
                                 'numCategories':num_categories, 'categories': categories,\
                                  'numReviews':num_reviews, 'reviews':reviews, \
                                  'downloaded':downloaded, 'avg_rating':avg_rating})
-    
+
     for i in general_categories:
-        insert_general_categories(i)
-    for i in produtos:
-        insert_products(i)
+        insert_general_categories(conn,i)
+    for i in produtos[:5]:
+        insert_products(conn,i)
         if i['reviews'] is not None:
             for j in i['reviews']:
-                insert_reviews(i['asin'],str(j).split())
+                insert_reviews(conn,i['asin'],str(j).split())
         if i['categories'] is not None:
             for j in i['categories']:
-                insert_categories(i['asin'],j)
-        if i['similar'] is not None:
-            for j in i['similar'].split():
-                insert_similar(i['asin'],j)
-
+                insert_categories(conn,i['asin'],j)
+        if i['similar'] is not None and i['similar'][0] != '0':
+            insert_similar(conn,i['asin'],i['similar'].split())
+    print("Dados inseridos com sucesso.")
 
 if __name__ == "__main__":
-    create_schema()
-    insert_data()
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            host=os.environ.get('PGHOST', 'db'),
+            port=os.environ.get('PGPORT', 5432),
+            user=os.environ.get('PGUSER', 'postgres'),
+            password=os.environ.get('PGPASSWORD', 'postgres'),
+            dbname=os.environ.get('PGDATABASE', 'ecommerce')
+        )
+        create_schema(conn)
+        insert_data(conn)
+        
+        conn.commit()
+        print("Esquema criado e dados inseridos com sucesso.")
+    except (Exception, psycopg2.Error) as error:
+        print("Ocorreu um erro. Revertendo operações.", error)
+        if conn:
+            conn.rollback()
+
+    finally:
+        if conn:
+            conn.close()
+            print("Conexão com o banco de dados fechada.")
+        
