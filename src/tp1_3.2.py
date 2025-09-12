@@ -12,7 +12,7 @@ def create_schema(conn):
         # à localização de onde o script é executado.
         # Se tp1_3.2.py está em /app/src e schema.sql em /app/sql,
         # o caminho relativo seria '../sql/schema.sql'
-        with open('../sql/schema.sql', 'r') as f:
+        with open('./sql/schema.sql', 'r') as f:
             sql_script = f.read()
             cur.execute(sql_script)
     print("Esquema do banco de dados criado com sucesso.")
@@ -71,9 +71,9 @@ def insert_general_categories(conn,categories):
     categorie = find_id(categories)
     if categorie is not None:
         sql = """
-            INSERT INTO GeneralCategories (id_category, categorie_name, id_father)
+            INSERT INTO Categories (id_categorie, categorie_name, id_father)
             VALUES (%s, %s, %s)
-            ON CONFLICT (id_category) DO NOTHING;
+            ON CONFLICT (id_categorie) DO NOTHING;
             """
         with conn.cursor() as cur:
             cat_name = categorie[0][0] if categorie[0][0] != "" else None
@@ -103,7 +103,7 @@ def insert_similar(conn, asin, similar):
     Insere produtos similares na tabela Similar.
     """
     sql = """
-        INSERT INTO Similar (asin_product,asin_similar)
+        INSERT INTO "Similar" (asin_product,asin_similar)
         VALUES (%s, %s)
         ON CONFLICT (asin_product, asin_similar) DO NOTHING;
         """
@@ -115,7 +115,7 @@ def insert_data(conn):
     """
     Função para inserir dados nas tabelas criadas.
     """
-    with open('data/snap_amazon.txt', 'r') as f:
+    with open('./data/snap_amazon.txt', 'r') as f:
         arquivo = (line for line in f.read().splitlines() if line.strip())
         produtos = []
         general_categories = set()
@@ -186,7 +186,7 @@ if __name__ == "__main__":
         conn.commit()
         print("Esquema criado e dados inseridos com sucesso.")
     except (Exception, psycopg2.Error) as error:
-        print("Ocorreu um erro. Revertendo operações.", error)
+        print("Ocorreu um erro. Revertendo operações.\nErro:", error)
         if conn:
             conn.rollback()
 

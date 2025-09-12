@@ -29,8 +29,9 @@ services:
       PGDATABASE: ecommerce
     working_dir: /app
     volumes:
-      - ./data:/data # arquivo de entrada
+      - ./data:/app/data # arquivo de entrada
       - ./src:/app/src # Mapeia o código-fonte para dentro do contêiner
+      - ./sql:/app/sql # Mapeia os scripts SQL para dentro do contêiner
     depends_on:
       db:
         condition: service_healthy

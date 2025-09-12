@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS Categorie_product (
     PRIMARY KEY (asin, id_category)
 );
 
-CREATE TABLE IF NOT EXISTS Similar (
+CREATE TABLE IF NOT EXISTS "Similar" (
     asin_product VARCHAR(20) REFERENCES Products(ASIN) ON DELETE CASCADE,
     asin_similar VARCHAR(20) REFERENCES Products(ASIN) ON DELETE CASCADE,
     PRIMARY KEY (asin_product, asin_similar)
