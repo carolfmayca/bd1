@@ -130,9 +130,10 @@ def insert_general_categories(categories):
                 dbname=os.environ.get('PGDATABASE', 'ecommerce')
             )
             with conn.cursor() as cur:
-                cur.execute(sql, (categorie[0][1], categorie[0][0], None))
+                cat_name = categorie[0][0] if categorie[0][0] != "" else None
+                cur.execute(sql, (categorie[0][1], cat_name, None))
                 for i in range(1,len(categorie)):
-                    cur.execute(sql, (categorie[i][1], categorie[i][0], categorie[i-1][1]))
+                    cur.execute(sql, (categorie[i][1], cat_name, categorie[i-1][1]))
                 conn.commit()
         except psycopg2.Error as e:
             print(f"Erro ao inserir categoria: {e}")
@@ -170,6 +171,35 @@ def insert_categories(asin,categories):
             if conn:
                 conn.close()
 
+def insert_similar(asin, similar):
+    if similar is not None:
+        if similar[0] != []:
+            sql = """
+                INSERT INTO Similar (asin_product,id_similar,asin_similar)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (asin_product, asin_similar) DO NOTHING;
+                """
+            conn = None
+            try:
+                conn = psycopg2.connect(
+                    host=os.environ.get('PGHOST', 'db'),
+                    port=os.environ.get('PGPORT', 5432),
+                    user=os.environ.get('PGUSER', 'postgres'),
+                    password=os.environ.get('PGPASSWORD', 'postgres'),
+                    dbname=os.environ.get('PGDATABASE', 'ecommerce')
+                )
+                with conn.cursor() as cur:
+                    for i in similar[1:]:
+                        cur.execute(sql, (asin, i[0], i[1]))
+                conn.commit()
+            except psycopg2.Error as e:
+                print(f"Erro ao inserir similar: {e}")
+                if conn:
+                    conn.rollback()
+            finally:
+                if conn:
+                    conn.close()
+
 def insert_data():
     """
     Função para inserir dados de exemplo nas tabelas criadas.
@@ -184,9 +214,8 @@ def insert_data():
                     line = find_next_line(arquivo, 'ASIN')
                     asin = line.split(':')[1].strip()
                     line = next(arquivo)
-                    if "discontinued product" in line:
-                        title = group = salesrank = similar =categories =reviews =numCategories = numReviews = downloaded = avg_rating = None
-                    else:
+                    title = group = salesrank = similar = categories = reviews = numCategories = numReviews = downloaded = avg_rating = None
+                    if not "discontinued product" in line:
                         title = ":".join(line.split(':')[1:]).strip()  # pois o título pode ter ':' dentro
                         line = find_next_line(arquivo, 'group')
                         group = line.split(':')[1].strip()
@@ -213,17 +242,23 @@ def insert_data():
                                      'similar':similar, 'numCategories':numCategories,'categories': categories,\
                                      'numReviews':numReviews, 'reviews':reviews, 'downloaded':downloaded, \
                                      'avg_rating':avg_rating})
-    # for i in generalCategories:
-        # insert_general_categories(i)
+    for i in produtos:
+        if i['similar'] is not None:
+            print(i['similar'].split())
     for i in produtos:
         insert_products(i)
-        for j in i['reviews']:
-            insert_reviews(i['asin'],str(j).split())
-        for j in i['categories']:
-            insert_categories(i['asin'],j)
+        if i['reviews'] is not None:
+            for j in i['reviews']:
+                insert_reviews(i['asin'],str(j).split())
+        if i['categories'] is not None:
+            for j in i['categories']:
+                insert_categories(i['asin'],j)
+        if i['similar'] is not None:
+            for j in i['similar'].split():
+                insert_similar(i['asin'],j)
 
 
 if __name__ == "__main__":
-    # create_schema()
+    create_schema()
     insert_data()
 
