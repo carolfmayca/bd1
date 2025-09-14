@@ -20,7 +20,7 @@ def create_schema(conn):
 
 def find_next_line(iterator, text):
     """
-    Avança o iterador até encontrar uma linha que comece com o texto desejado.
+    Avança o iterador até encontrar uma linha que contenha o texto desejado.
     Retorna a linha encontrada ou None se o arquivo terminar antes de encontrar.
     """
     for line in iterator:
@@ -32,13 +32,34 @@ def insert_products(conn, produto):
     """
     Insere um produto na tabela Products.
     """
+    # Se o produto for 'discontinued', o título será None. Não há nada a inserir.
+    if produto['title'] is None:
+        return
+
     sql = """
         INSERT INTO Products (Id, ASIN, title, "group", salesrank, numSimilar, numCategories, numReviews, downloaded, avg_rating)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (ASIN) DO NOTHING;
         """
     with conn.cursor() as cur:
-        cur.execute(sql, (produto['id'], produto['asin'], produto['title'], produto['group'], produto['salesrank'], produto['similar'][0], produto['numCategories'], produto['numReviews'], produto['downloaded'], produto['avg_rating']))
+        # O primeiro item da string 'similar' é a contagem.
+        # Se 'similar' for None, a contagem é 0.
+        num_similar = 0
+        if produto['similar'] is not None:
+            num_similar = produto['similar'].split()[0]
+
+        cur.execute(sql, (
+            produto['id'],
+            produto['asin'],
+            produto['title'],
+            produto['group'],
+            produto['salesrank'],
+            num_similar,  # Usamos a contagem extraída
+            produto['numCategories'],
+            produto['numReviews'],
+            produto['downloaded'],
+            produto['avg_rating']
+        ))
 
 def insert_reviews(conn,asin,reviews):
     """
@@ -51,7 +72,11 @@ def insert_reviews(conn,asin,reviews):
             ON CONFLICT (id) DO NOTHING;
             """
         with conn.cursor() as cur:
-            cur.execute(sql, (asin, reviews[0], reviews[2], reviews[4], reviews[6], reviews[8]))
+            # A linha de review tem um formato fixo, o split pode quebrar.
+            # Ex: '2000-7-28  cutomer: A2JW67OY8U6HHK  rating: 5  votes:  10  helpful:   9'
+            parts = ' '.join(reviews).split()
+            if len(parts) >= 9:
+                 cur.execute(sql, (asin, parts[0], parts[2], parts[4], parts[6], parts[8]))
 
 
 def find_id(categorie):
@@ -98,10 +123,14 @@ def insert_categories(conn,asin,categories):
                 cur.execute(sql, (asin, i[1]))
 
 
-def insert_similar(conn, asin, similar):
+def insert_similar(conn, asin, similar, valid_asins):
     """
     Insere produtos similares na tabela Similar.
+    Verifica se o ASIN similar existe no conjunto de ASINs válidos antes de inserir.
     """
+    # Garante que 'similar' não é None e tem mais de um item (contagem > 0)
+    if similar is None or len(similar) <= 1:
+        return
     sql = """
         INSERT INTO "Similar" (asin_product,asin_similar)
         VALUES (%s, %s)
@@ -109,12 +138,14 @@ def insert_similar(conn, asin, similar):
         """
     with conn.cursor() as cur:
         for i in similar[1:]:
-            cur.execute(sql, (asin, i))
+            if i in valid_asins:
+                cur.execute(sql, (asin, i))
 
 def insert_data(conn):
     """
     Função para inserir dados nas tabelas criadas.
     """
+    print("Iniciando o parsing do arquivo de dados...")
     with open('./data/snap_amazon.txt', 'r') as f:
         arquivo = (line for line in f.read().splitlines() if line.strip())
         produtos = []
@@ -143,11 +174,12 @@ def insert_data(conn):
                         general_categories.add(line)
                         categories.append([line.strip()])
                     line = find_next_line(arquivo, 'reviews')
-                    num_reviews = line.split(':')[2][1].strip()
-                    downloaded = line.split(':')[3][1].strip()
-                    avg_rating = line.split(':')[4][1].strip()
+                    line_reviews = line.split(':')
+                    num_reviews = line_reviews[2][1].strip()
+                    downloaded = line_reviews[3][1].strip()
+                    avg_rating = line_reviews[4][1].strip()
                     reviews = []
-                    for _ in range(int(num_reviews)):
+                    for _ in range(int(downloaded)):
                         line = next(arquivo)
                         reviews.append([line.strip()])
                 produtos.append({'id':id_, 'asin':asin, 'title':title, 'group':group, \
@@ -155,19 +187,28 @@ def insert_data(conn):
                                 'numCategories':num_categories, 'categories': categories,\
                                  'numReviews':num_reviews, 'reviews':reviews, \
                                  'downloaded':downloaded, 'avg_rating':avg_rating})
-
+    print(f"Parsing concluído. {len(produtos)} produtos encontrados.")
+    print("Inserindo categorias gerais e produtos...")
     for i in general_categories:
         insert_general_categories(conn,i)
-    for i in produtos[:5]:
+    for i in produtos:
         insert_products(conn,i)
+    
+    print("Produtos e categorias inseridos.")
+    print("Inserindo relações (reviews, categorias, similares)...")
+    with conn.cursor() as cur:
+        cur.execute("SELECT asin FROM Products")
+        valid_asins = {row[0] for row in cur.fetchall()}
+    for i in produtos:
         if i['reviews'] is not None:
             for j in i['reviews']:
-                insert_reviews(conn,i['asin'],str(j).split())
+                insert_reviews(conn,i['asin'],j[0].split())
         if i['categories'] is not None:
             for j in i['categories']:
                 insert_categories(conn,i['asin'],j)
-        if i['similar'] is not None and i['similar'][0] != '0':
-            insert_similar(conn,i['asin'],i['similar'].split())
+        if i['similar'] is not None and i['similar'].split()[0] != '0':
+            insert_similar(conn, i['asin'], i['similar'].split(), valid_asins)
+            
     print("Dados inseridos com sucesso.")
 
 if __name__ == "__main__":
@@ -194,4 +235,4 @@ if __name__ == "__main__":
         if conn:
             conn.close()
             print("Conexão com o banco de dados fechada.")
-        
+
