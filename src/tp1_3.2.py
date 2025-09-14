@@ -6,12 +6,7 @@ def create_schema(conn):
     """
     Cria o esquema do banco de dados executando o script SQL.
     """
-    # Abre uma sessão para executar os comandos
     with conn.cursor() as cur:
-        # O caminho para o schema.sql precisa ser relativo
-        # à localização de onde o script é executado.
-        # Se tp1_3.2.py está em /app/src e schema.sql em /app/sql,
-        # o caminho relativo seria '../sql/schema.sql'
         with open('./sql/schema.sql', 'r') as f:
             sql_script = f.read()
             cur.execute(sql_script)
@@ -32,7 +27,6 @@ def insert_products(conn, produto):
     """
     Insere um produto na tabela Products.
     """
-    # Se o produto for 'discontinued', o título será None. Não há nada a inserir.
     if produto['title'] is None:
         return
 
@@ -42,8 +36,7 @@ def insert_products(conn, produto):
         ON CONFLICT (ASIN) DO NOTHING;
         """
     with conn.cursor() as cur:
-        # O primeiro item da string 'similar' é a contagem.
-        # Se 'similar' for None, a contagem é 0.
+
         num_similar = 0
         if produto['similar'] is not None:
             num_similar = produto['similar'].split()[0]
@@ -54,7 +47,7 @@ def insert_products(conn, produto):
             produto['title'],
             produto['group'],
             produto['salesrank'],
-            num_similar,  # Usamos a contagem extraída
+            num_similar, 
             produto['numCategories'],
             produto['numReviews'],
             produto['downloaded'],
@@ -72,8 +65,6 @@ def insert_reviews(conn,asin,reviews):
             ON CONFLICT (id) DO NOTHING;
             """
         with conn.cursor() as cur:
-            # A linha de review tem um formato fixo, o split pode quebrar.
-            # Ex: '2000-7-28  cutomer: A2JW67OY8U6HHK  rating: 5  votes:  10  helpful:   9'
             parts = ' '.join(reviews).split()
             if len(parts) >= 9:
                  cur.execute(sql, (asin, parts[0], parts[2], parts[4], parts[6], parts[8]))
@@ -128,7 +119,6 @@ def insert_similar(conn, asin, similar, valid_asins):
     Insere produtos similares na tabela Similar.
     Verifica se o ASIN similar existe no conjunto de ASINs válidos antes de inserir.
     """
-    # Garante que 'similar' não é None e tem mais de um item (contagem > 0)
     if similar is None or len(similar) <= 1:
         return
     sql = """
