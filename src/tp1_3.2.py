@@ -145,7 +145,6 @@ def insert_data(conn):
     """
     Função para inserir dados nas tabelas criadas.
     """
-    print("Iniciando o parsing do arquivo de dados...")
     with open('./data/snap_amazon.txt', 'r') as f:
         arquivo = (line for line in f.read().splitlines() if line.strip())
         produtos = []
@@ -188,14 +187,12 @@ def insert_data(conn):
                                  'numReviews':num_reviews, 'reviews':reviews, \
                                  'downloaded':downloaded, 'avg_rating':avg_rating})
     print(f"Parsing concluído. {len(produtos)} produtos encontrados.")
-    print("Inserindo categorias gerais e produtos...")
     for i in general_categories:
         insert_general_categories(conn,i)
     for i in produtos:
         insert_products(conn,i)
     
     print("Produtos e categorias inseridos.")
-    print("Inserindo relações (reviews, categorias, similares)...")
     with conn.cursor() as cur:
         cur.execute("SELECT asin FROM Products")
         valid_asins = {row[0] for row in cur.fetchall()}
