@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 import os
-import psycopg
+import psycopg2
 import pandas as pd
 
 # Configuração básica do logging para exibir mensagens no terminal
@@ -21,11 +21,12 @@ def query_1(cursor, product_asin):
 
     logging.info(f"Executando Query 1 para o ASIN: {product_asin}")
     
-    # 5 mais úteis com maior avaliação
     sql_top_rated = """
         SELECT asin, rating, helpful, votes, customer FROM reviews 
-         DESC, rating DESC LIMIT 5;
-         """ 
+        WHERE asin = %s
+        ORDER BY helpful DESC, rating DESC 
+        LIMIT 5;
+    """ 
     cursor.execute(sql_top_rated, (product_asin,))
     results_top = cursor.fetchall()
     
@@ -35,6 +36,61 @@ def query_1(cursor, product_asin):
         print(df_top)
     else:
         print(f"Nenhum comentário encontrado para o produto com ASIN {product_asin}.")
+
+
+    sql_low_rated = """
+        SELECT asin, rating, helpful, votes, customer FROM reviews 
+        WHERE asin = %s
+        ORDER BY helpful DESC, rating ASC 
+        LIMIT 5;
+    """
+    cursor.execute(sql_low_rated, (product_asin,))
+    results_low = cursor.fetchall()
+
+    print("\n--- Query 1: Top 5 Comentários (Mais Úteis, Menor Avaliação) ---")
+    if results_low:
+        df_low = pd.DataFrame(results_low, columns=[desc[0] for desc in cursor.description])
+        print(df_low)
+    else:
+        print(f"Nenhum comentário encontrado para o produto com ASIN {product_asin}.")
+
+
+def query_2(cursor, product_asin):
+    """
+    Dado um produto, listar os produtos similares com maiores vendas (melhor salesrank) do que ele.
+    """
+    if not product_asin:
+        logging.warning("Query 2 requer um --product-asin. Pulando.")
+        return
+
+    logging.info(f"Executando Query 2 para o ASIN: {product_asin}")
+    
+    sql = """
+        SELECT
+            p2.asin,
+            p2.title,
+            p2.salesrank
+        FROM
+            products AS p1
+        JOIN
+            "Similar" AS s ON p1.asin = s.asin_product
+        JOIN
+            products AS p2 ON s.asin_similar = p2.asin
+        WHERE
+            p1.asin = %s AND p2.salesrank < p1.salesrank
+        ORDER BY
+            p2.salesrank ASC;
+    """
+    cursor.execute(sql, (product_asin,))
+    results = cursor.fetchall()
+    
+    print("\n--- Query 2: Produtos Similares com Melhor Salesrank ---")
+    if results:
+        df = pd.DataFrame(results, columns=[desc[0] for desc in cursor.description])
+        print(df)
+    else:
+        print(f"Nenhum produto similar com melhor salesrank encontrado para o ASIN {product_asin}.")
+
 
 
 def main():
@@ -61,16 +117,16 @@ def main():
         conn_string = f"host={args.db_host} port={args.db_port} dbname={args.db_name} user={args.db_user} password={args.db_pass}"
         
         logging.info("Conectando ao banco de dados...")
-        conn = psycopg.connect(conn_string)
+        conn = psycopg2.connect(conn_string)
         cursor = conn.cursor()
         logging.info("Conexão bem-sucedida.")
 
         # --- Execução das Queries ---
 
-        query_1(cursor, args.product_asin)
+        query_2(cursor, args.product_asin)
 
         cursor.close()
-    except psycopg.Error as e:
+    except psycopg2.Error as e:
         logging.error(f"Erro de banco de dados: {e}")
         sys.exit(1) # Termina com código de erro
     finally:
