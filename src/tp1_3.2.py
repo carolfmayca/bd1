@@ -1,3 +1,4 @@
+import argparse
 import os
 import psycopg2
 import re
@@ -114,12 +115,12 @@ def batch_insert_similars(conn, data):
     with conn.cursor() as cur:
         execute_batch(cur, sql, data)
 
-def insert_data(conn):
+def insert_data(conn, input_file):
     """
     Função para inserir dados nas tabelas criadas.
     """
     print("Iniciando o parsing do arquivo...")
-    with open('./data/snap_amazon.txt', 'r') as f:
+    with open(input_file, 'r') as f:
         arquivo = (line for line in f.read().splitlines() if line.strip())
         produtos = []
         general_categories = set()
@@ -201,17 +202,28 @@ def insert_data(conn):
     print("Dados inseridos com sucesso.")
 
 if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser(description="Script para popular o banco de dados de e-commerce.")
+    parser.add_argument('--db-host', default=os.environ.get('PGHOST', 'db'), help='Host do banco de dados')
+    parser.add_argument('--db-port', default=os.environ.get('PGPORT', 5432), help='Porta do banco de dados')
+    parser.add_argument('--db-name', default=os.environ.get('PGDATABASE', 'ecommerce'), help='Nome do banco de dados')
+    parser.add_argument('--db-user', default=os.environ.get('PGUSER', 'postgres'), help='Usuário do banco de dados')
+    parser.add_argument('--db-pass', default=os.environ.get('PGPASSWORD', 'postgres'), help='Senha do banco de dados')
+    parser.add_argument('--input', required=True, help='Caminho para o arquivo de dados de entrada')
+    
+    args = parser.parse_args()
+
     conn = None
     try:
         conn = psycopg2.connect(
-            host=os.environ.get('PGHOST', 'db'),
-            port=os.environ.get('PGPORT', 5432),
-            user=os.environ.get('PGUSER', 'postgres'),
-            password=os.environ.get('PGPASSWORD', 'postgres'),
-            dbname=os.environ.get('PGDATABASE', 'ecommerce')
+            host=args.db_host,
+            port=args.db_port,
+            user=args.db_user,
+            password=args.db_pass,
+            dbname=args.db_name
         )
         create_schema(conn)
-        insert_data(conn)
+        insert_data(conn, args.input)
         print("Fazendo commit das operações...")
         conn.commit()
         print("Esquema criado e dados inseridos com sucesso.")
