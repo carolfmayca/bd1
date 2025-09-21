@@ -89,6 +89,22 @@ def batch_insert_similars(conn, data):
     """
     with conn.cursor() as cur:
         execute_batch(cur, sql, data)
+        
+def execute_in_chunks(conn, batch_function, data, table_name, chunk_size=10000):
+    """Executa uma função de inserção em lote em pedaços menores."""
+    if not data:
+        return
+    
+    if isinstance(data, set):
+        data = list(data)
+    
+    total = len(data)
+    print(f"Iniciando inserção em lotes para a tabela '{table_name}' ({total} linhas)...")
+    
+    for i in range(0, total, chunk_size):
+        chunk = data[i:i + chunk_size]
+        batch_function(conn, chunk)
+
 
 def insert_data(conn, input_file):
     """
@@ -144,7 +160,7 @@ def insert_data(conn, input_file):
     print(f"Parsing concluído. {len(produtos_data)} produtos encontrados.")
     print("Inserindo categorias gerais e produtos...")
     
-    batch_insert_products(conn, produtos_data)
+    execute_in_chunks(conn, batch_insert_products, produtos_data, "Products")
     general_categories_data = []
     processed_cat_ids = set()
     for i in general_categories:
@@ -159,8 +175,7 @@ def insert_data(conn, input_file):
                 if categorie[i][1] not in processed_cat_ids:
                     general_categories_data.append((categorie[i][1], cat_name, categorie[i-1][1]))
                     processed_cat_ids.add(categorie[i][1])
-    batch_insert_general_categories(conn, general_categories_data)
-    
+    execute_in_chunks(conn, batch_insert_general_categories, general_categories_data, "Categories")
     print("Produtos e categorias gerais inseridos.")
     print("Continuando inserções...")
     print("\033[37mwarning: aqui demora um pouco, recomendo ir tomar um café ☕\033[0m")
@@ -173,9 +188,10 @@ def insert_data(conn, input_file):
             for j in similar_parts:
                 if j in valid_asins:
                     similars_data.append((i[0], j))
-    batch_insert_reviews(conn, reviews)
-    batch_insert_product_categories(conn, product_categories_data)
-    batch_insert_similars(conn, similars_data)
+    execute_in_chunks(conn, batch_insert_reviews, reviews, "Reviews")
+    execute_in_chunks(conn, batch_insert_product_categories, product_categories_data, "Categorie_product")
+    execute_in_chunks(conn, batch_insert_similars, similars_data, "Similar")
+    
     print("Dados inseridos com sucesso.")
 
 if __name__ == "__main__":
