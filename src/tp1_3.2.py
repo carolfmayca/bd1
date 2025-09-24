@@ -184,7 +184,6 @@ def insert_data(conn, input_file):
     for i in similars:
         if len(i) == 2 and i[1]:
             similar_parts = i[1].split()
-            print(i[0])
             for j in similar_parts:
                 if j in valid_asins:
                     similars_data.append((i[0], j))
