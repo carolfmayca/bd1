@@ -179,7 +179,6 @@ def insert_data(conn, input_file):
     print("Produtos e categorias gerais inseridos.")
     print("Continuando inserções...")
     print("\033[37mwarning: aqui demora um pouco, recomendo ir tomar um café ☕\033[0m")
-    print("\033[37mtempo médio: 8 minutos (obviamente depende do pc)\033[0m")
     similars_data = []
     for i in similars:
         if len(i) == 2 and i[1]:
