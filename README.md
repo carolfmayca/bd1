@@ -14,7 +14,7 @@ Você pode usar este comando para garantir que o contêiner do PostgreSQL (db) e
 ### Criar o Esquema e Carregar os Dados
 Este comando executa o script tp1_3.2.py, que irá criar as tabelas e popular o banco de dados com os dados do arquivo snap_amazon.txt. Este processo pode levar alguns minutos.
 
-```docker compose run --rm app python src/tp1_3.2.py \ --db-host db --db-port 5432 --db-name ecommerce --db-user postgres --db-pass postgres \ --input /data/snap_amazon.txt ```
+```docker compose run --rm app python src/tp1_3.2.py --db-host db --db-port 5432 --db-name ecommerce --db-user postgres --db-pass postgres --input data/snap_amazon.txt```
 
 
 ### Executar o Dashboard
