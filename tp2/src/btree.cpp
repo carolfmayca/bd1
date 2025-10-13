@@ -57,6 +57,7 @@ BPlusTree<T>::BPlusTree() {
     this->root = newNode(true); // nó raiz folha vazio
 }
 
+// Cria um novo nó com arrays alocados dinamicamente e inicializados
 template <typename T>
 typename BPlusTree<T>::BPlusTreeNode* BPlusTree<T>::newNode(bool leaf) {
     auto* n = new BPlusTreeNode;
@@ -64,7 +65,7 @@ typename BPlusTree<T>::BPlusTreeNode* BPlusTree<T>::newNode(bool leaf) {
     n->numKeys = 0;
     n->keys = new int[2 * m];
     n->children = new void*[2 * m + 1];
-    std::memset(n->children, 0, sizeof(void*) * (2 * m + 1));
+    std::memset(n->children, 0, sizeof(void*) * (2 * m + 1)); // inicializa com nullptr
     return n;
 }
 
@@ -81,11 +82,13 @@ void BPlusTree<T>::insert(int key, T *data, BPlusTreeNode *node) {
         if (node->numKeys < 2 * m) {
             // Nó não está cheio: insere de forma ordenada (in-place)
             int i = node->numKeys - 1;
+            // Desloca chaves maiores para a direita
             while (i >= 0 && node->keys[i] > key) {
                 node->keys[i + 1] = node->keys[i];
                 node->children[i + 1] = node->children[i];
                 --i;
             }
+            // Insere nova chave na posição correta
             node->keys[i + 1] = key;
             node->children[i + 1] = static_cast<void*>(data);
             node->numKeys++;
@@ -97,7 +100,7 @@ void BPlusTree<T>::insert(int key, T *data, BPlusTreeNode *node) {
     }
 
     // Nó interno: escolher filho apropriado e descer
-    int i = upperBound(node->keys, node->numKeys, key);
+    int i = upperBound(node->keys, node->numKeys, key); // encontra primeiro child > key
     auto* child = static_cast<BPlusTreeNode*>(node->children[i]);
     insert(key, data, child);
 
@@ -117,6 +120,7 @@ void BPlusTree<T>::splitLeaf(BPlusTreeNode *node, int key, T *data) {
     int i = 0, j = 0;
     bool inserted = false;
 
+    // Merge ordenado das chaves existentes com a nova chave
     for (i = 0; i < node->numKeys; i++) {
         if (!inserted && key < node->keys[i]) {
             tmpKeys[j] = key;
@@ -196,11 +200,13 @@ void BPlusTree<T>::insertInternal(int key, BPlusTreeNode *parent, BPlusTreeNode 
     if (parent->numKeys < 2 * m) {
         // Pai não está cheio
         int i = parent->numKeys - 1;
+        // Desloca chaves e ponteiros para abrir espaço
         while (i >= 0 && parent->keys[i] > key) {
             parent->keys[i + 1] = parent->keys[i];
             parent->children[i + 2] = parent->children[i + 1];
             --i;
         }
+        // Insere nova chave e ponteiro
         parent->keys[i + 1] = key;
         parent->children[i + 2] = static_cast<void*>(child);
         parent->numKeys++;
@@ -225,7 +231,7 @@ void BPlusTree<T>::splitInternal(BPlusTreeNode *parent, int promoteKey, BPlusTre
     // encontrar posição onde a promoteKey deve entrar
     while (pos < parent->numKeys && parent->keys[pos] < promoteKey) pos++;
 
-    // copiar [0..pos-1]
+    // copiar [0..pos-1] - chaves e ponteiros antes da inserção
     for (i = 0; i < pos; ++i) {
         tmpKeys[i] = parent->keys[i];
         tmpChildren[i] = parent->children[i];
@@ -236,7 +242,7 @@ void BPlusTree<T>::splitInternal(BPlusTreeNode *parent, int promoteKey, BPlusTre
     tmpKeys[pos] = promoteKey;
     tmpChildren[pos + 1] = static_cast<void*>(rightChild);
 
-    // copiar restante [pos..]
+    // copiar restante [pos..] - chaves e ponteiros após a inserção
     for (j = pos; j < parent->numKeys; ++j) {
         tmpKeys[j + 1] = parent->keys[j];
         tmpChildren[j + 2] = parent->children[j + 1];
@@ -266,6 +272,7 @@ void BPlusTree<T>::splitInternal(BPlusTreeNode *parent, int promoteKey, BPlusTre
 
     // Ligar no pai do 'parent'
     if (parent == root) {
+        // Cria nova raiz se parent era a raiz
         BPlusTreeNode *newRoot = newNode(false);
         newRoot->keys[0] = upKey;
         newRoot->children[0] = static_cast<void*>(parent);
@@ -273,6 +280,7 @@ void BPlusTree<T>::splitInternal(BPlusTreeNode *parent, int promoteKey, BPlusTre
         newRoot->numKeys = 1;
         root = newRoot;
     } else {
+        // Propaga divisão para cima
         insertInternal(upKey, findParent(root, parent), right);
     }
 
@@ -282,6 +290,7 @@ void BPlusTree<T>::splitInternal(BPlusTreeNode *parent, int promoteKey, BPlusTre
 
 // ---------- buscas e utilidades ----------
 
+// Retorna primeiro índice onde arr[i] > key (busca binária)
 template <typename T>
 int BPlusTree<T>::upperBound(const int *arr, int n, int key) {
     int l = 0, r = n;
@@ -293,6 +302,7 @@ int BPlusTree<T>::upperBound(const int *arr, int n, int key) {
     return l; // primeiro índice com arr[i] > key
 }
 
+// Retorna primeiro índice onde arr[i] >= key (busca binária)
 template <typename T>
 int BPlusTree<T>::lowerBound(const int *arr, int n, int key) {
     int l = 0, r = n;
@@ -304,14 +314,17 @@ int BPlusTree<T>::lowerBound(const int *arr, int n, int key) {
     return l; // primeiro índice com arr[i] >= key
 }
 
+// Busca uma chave na árvore B+
 template <typename T>
 bool BPlusTree<T>::search(int k) {
     BPlusTreeNode *node = root;
+    // Desce até folha seguindo os ponteiros corretos
     while (node && !node->isLeaf) {
         int i = upperBound(node->keys, node->numKeys, k);
         node = static_cast<BPlusTreeNode*>(node->children[i]);
     }
     if (!node) return false;
+    // Busca binária na folha
     int pos = lowerBound(node->keys, node->numKeys, k);
     return (pos < node->numKeys && node->keys[pos] == k);
 }
