@@ -5,19 +5,10 @@
 // Construtor
 HashingFile::HashingFile(const std::string& filename, int table_size)
     : nomeArquivo(filename), TAMANHO_TABELA(table_size) {
-    
-    // Tenta abrir o arquivo já existente para leitura e escrita binária
     arquivo.open(nomeArquivo, std::ios::in | std::ios::out | std::ios::binary);
-
-    // Se o arquivo não existir (falha ao abrir), cria um novo
     if (!arquivo.is_open()) {
-        std::cout << "Arquivo de dados '" << nomeArquivo << "' nao encontrado. Criando um novo..." << std::endl;
-        criarArquivo();
-        // Tenta abrir novamente após a criação
-        arquivo.open(nomeArquivo, std::ios::in | std::ios::out | std::ios::binary);
-        if (!arquivo.is_open()){
-             std::cerr << "Erro fatal: nao foi possivel abrir o arquivo apos a criacao." << std::endl;
-        }
+        std::cout << "Arquivo de dados '" << nomeArquivo << "' nao encontrado. Criando novo conjunto de arquivos..." << std::endl;
+        criarArquivos();
     } else {
         std::cout << "Arquivo de dados '" << nomeArquivo << "' aberto com sucesso." << std::endl;
     }
@@ -30,111 +21,122 @@ HashingFile::~HashingFile() {
     }
 }
 
-// Cria o arquivo de dados inicial e o preenche com registros vazios
-void HashingFile::criarArquivo() {
-    // Abre em modo de escrita, apagando qualquer conteúdo anterior (trunc)
-    std::ofstream novoArquivo(nomeArquivo, std::ios::out | std::ios::binary | std::ios::trunc);
-    if (!novoArquivo.is_open()) {
-        std::cerr << "Erro fatal: nao foi possivel criar o arquivo '" << nomeArquivo << "'." << std::endl;
-        return;
+// Cria os dois arquivos necessários: o de dados e o de índice (tabela hash)
+void HashingFile::criarArquivos() {
+    arquivo.open(nomeArquivo, std::ios::out | std::ios::binary);
+    if (arquivo.is_open()) {
+        std::cout << "Arquivo '" << nomeArquivo << "' criado." << std::endl;
+        arquivo.close();
+    }
+
+    std::string nomeTabela = "tabela_hash.idx";
+    std::ofstream tabela(nomeTabela, std::ios::out | std::ios::binary);
+    if (tabela.is_open()) {
+        long offset_vazio = -1;
+        for (int i = 0; i < TAMANHO_TABELA; ++i) {
+            tabela.write(reinterpret_cast<const char*>(&offset_vazio), sizeof(long));
+        }
+        tabela.close();
+        std::cout << "Arquivo de indice '" << nomeTabela << "' criado com " << TAMANHO_TABELA << " posicoes." << std::endl;
     }
     
-    Artigo artigoVazio = {}; // Inicializa todos os campos com zero/false
-    artigoVazio.ocupado = false;
-
-    // Escreve TAMANHO_TABELA registros vazios no arquivo
-    for (int i = 0; i < TAMANHO_TABELA; ++i) {
-        novoArquivo.write(reinterpret_cast<const char*>(&artigoVazio), sizeof(Artigo));
-    }
-    novoArquivo.close();
-    std::cout << "Arquivo '" << nomeArquivo << "' criado com " << TAMANHO_TABELA << " posicoes." << std::endl;
+    arquivo.open(nomeArquivo, std::ios::in | std::ios::out | std::ios::binary);
 }
 
-// Insere um novo artigo usando hashing com sondagem linear
-long HashingFile::inserirArtigo(const Artigo& novoArtigo) {
+// Insere um novo artigo usando encadeamento
+long HashingFile::inserirArtigo(Artigo& novoArtigo) {
     if (!arquivo.is_open()) {
-        std::cerr << "Erro: Arquivo nao esta aberto para insercao." << std::endl;
+        std::cerr << "Erro: Arquivo de dados nao esta aberto." << std::endl;
         return -1;
     }
 
-    // 1. Calcula o endereço inicial usando a função de hash
-    int enderecoBase = novoArtigo.id % TAMANHO_TABELA;
-    int enderecoAtual = enderecoBase;
-    Artigo artigoLido;
+    novoArtigo.proximo_offset = -1;
 
-    // 2. Inicia a sondagem linear (procura por um balde vazio)
-    for (int i = 0; i < TAMANHO_TABELA; ++i) {
-        long pos = (long)enderecoAtual * sizeof(Artigo);
-        arquivo.seekg(pos);
-        arquivo.read(reinterpret_cast<char*>(&artigoLido), sizeof(Artigo));
+    int endereco = novoArtigo.id % TAMANHO_TABELA;
+    std::string nomeTabela = "tabela_hash.idx";
 
-        // 3. Verifica se o balde está livre
-        if (!artigoLido.ocupado) {
-            // Encontrou um lugar! Posiciona o cursor para escrita (seekp) e grava
-            arquivo.seekp(pos);
-            arquivo.write(reinterpret_cast<const char*>(&novoArtigo), sizeof(Artigo));
-            
-            std::cout << "Artigo ID " << novoArtigo.id << " inserido na posicao " << enderecoAtual << " (offset: " << pos << " bytes)." << std::endl;
+    std::fstream tabela(nomeTabela, std::ios::in | std::ios::out | std::ios::binary);
+    if (!tabela.is_open()) {
+        std::cerr << "Erro: Nao foi possivel abrir o arquivo de indice." << std::endl;
+        return -1;
+    }
 
-            // Retorna a posição em bytes, que será usada pelos arquivos de índice
-            return pos; 
-        }
+    long offset_inicio_cadeia;
+    tabela.seekg(endereco * sizeof(long));
+    tabela.read(reinterpret_cast<char*>(&offset_inicio_cadeia), sizeof(long));
 
-        // Se estiver ocupado, vai para o próximo balde (sondagem linear)
-        enderecoAtual = (enderecoAtual + 1) % TAMANHO_TABELA;
+    arquivo.seekg(0, std::ios::end);
+    long nova_posicao = arquivo.tellg();
 
-        // Se deu a volta completa, a tabela está cheia
-        if (enderecoAtual == enderecoBase) {
-            std::cerr << "Erro: Tabela Hash esta cheia! Nao foi possivel inserir o artigo ID " << novoArtigo.id << std::endl;
-            return -1;
+    if (offset_inicio_cadeia == -1) {
+        tabela.seekp(endereco * sizeof(long));
+        tabela.write(reinterpret_cast<const char*>(&nova_posicao), sizeof(long));
+    } else {
+        long offset_atual = offset_inicio_cadeia;
+        Artigo artigo_temp;
+        while (true) {
+            arquivo.seekg(offset_atual);
+            arquivo.read(reinterpret_cast<char*>(&artigo_temp), sizeof(Artigo));
+            if (artigo_temp.proximo_offset == -1) {
+                artigo_temp.proximo_offset = nova_posicao;
+                arquivo.seekp(offset_atual);
+                arquivo.write(reinterpret_cast<const char*>(&artigo_temp), sizeof(Artigo));
+                break;
+            }
+            offset_atual = artigo_temp.proximo_offset;
         }
     }
-    return -1; // Tabela cheia
+
+    arquivo.seekp(nova_posicao);
+    arquivo.write(reinterpret_cast<const char*>(&novoArtigo), sizeof(Artigo));
+    
+
+    tabela.close();
+    return nova_posicao;
 }
 
-
+// IMPLEMENTAÇÃO DA BUSCA
 Artigo HashingFile::buscarPorId(int id, int& blocosLidos) {
     blocosLidos = 0;
+    Artigo artigo_vazio = {};
+    artigo_vazio.ocupado = false;
+
     if (!arquivo.is_open()) {
-        std::cerr << "Erro: Arquivo nao esta aberto para busca." << std::endl;
-        return {}; // Retorna um artigo vazio
+        std::cerr << "Erro: Arquivo de dados nao esta aberto para busca." << std::endl;
+        return artigo_vazio;
     }
 
-    // 1. Calcula o endereço inicial usando a mesma função de hash
-    int enderecoBase = id % TAMANHO_TABELA;
-    int enderecoAtual = enderecoBase;
-    Artigo artigoLido;
+    // 1. Calcula o hash para encontrar o bucket de início
+    int endereco = id % TAMANHO_TABELA;
+    std::string nomeTabela = "tabela_hash.idx";
 
-    // 2. Inicia a sondagem linear para encontrar o ID
-    for (int i = 0; i < TAMANHO_TABELA; ++i) {
-        long pos = (long)enderecoAtual * sizeof(Artigo);
-        arquivo.seekg(pos);
-        arquivo.read(reinterpret_cast<char*>(&artigoLido), sizeof(Artigo));
+    std::ifstream tabela(nomeTabela, std::ios::in | std::ios::binary);
+    if (!tabela.is_open()) {
+        std::cerr << "Erro: Nao foi possivel abrir o arquivo de indice para busca." << std::endl;
+        return artigo_vazio;
+    }
+
+    // 2. Lê o ponteiro para o início da cadeia de colisão
+    long offset_atual;
+    tabela.seekg(endereco * sizeof(long));
+    tabela.read(reinterpret_cast<char*>(&offset_atual), sizeof(long));
+    tabela.close();
+
+    // 3. Percorre a cadeia (lista encadeada) no arquivo de dados
+    while (offset_atual != -1) {
+        arquivo.seekg(offset_atual);
+        Artigo artigo_temp;
+        arquivo.read(reinterpret_cast<char*>(&artigo_temp), sizeof(Artigo));
         blocosLidos++;
 
-        // 3. Verifica se o balde está ocupado
-        if (artigoLido.ocupado) {
-            // Se estiver ocupado, verifica se é o ID que procuramos
-            if (artigoLido.id == id) {
-                std::cout << "Artigo ID " << id << " encontrado na posicao " << enderecoAtual << "." << std::endl;
-                return artigoLido; // Encontrou! Retorna o artigo.
-            }
-        } else {
-            // Se encontrou um balde vazio, significa que o ID não existe no arquivo
-            // (pois na inserção, ele teria sido colocado aqui).
-            std::cerr << "Artigo ID " << id << " nao encontrado (busca terminou em balde vazio)." << std::endl;
-            return {}; // Retorna um artigo vazio
+        if (artigo_temp.id == id) {
+            // Encontrou!
+            return artigo_temp;
         }
-
-        // Se não era o ID correto, vai para o próximo balde
-        enderecoAtual = (enderecoAtual + 1) % TAMANHO_TABELA;
-        
-        // Se deu a volta completa, o item não existe
-        if (enderecoAtual == enderecoBase) {
-            break; 
-        }
+        // Se não for o ID certo, pula para o próximo da cadeia
+        offset_atual = artigo_temp.proximo_offset;
     }
 
-    std::cerr << "Artigo ID " << id << " nao encontrado (tabela inteira verificada)." << std::endl;
-    return {}; // Retorna um artigo vazio
+    // Se o loop terminar, o ID não foi encontrado na cadeia
+    return artigo_vazio;
 }
