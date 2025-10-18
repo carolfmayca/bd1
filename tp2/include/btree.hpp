@@ -31,7 +31,7 @@ public:
 
     void insert(int key, T *data) { insert(key, data, root); }
     void insert(int k, T *data, BPlusTreeNode *node); // recursiva
-    bool search(int k);
+    T* BPlusTree<T>::search(int k);
 
 private:
     BPlusTreeNode *root;
@@ -319,19 +319,21 @@ int BPlusTree<T>::lowerBound(const int *arr, int n, int key) {
     return l; // primeiro índice com arr[i] >= key
 }
 
-// Busca uma chave na árvore B+
 template <typename T>
-bool BPlusTree<T>::search(int k) {
-    BPlusTreeNode *node = root;
-    // Desce até folha seguindo os ponteiros corretos
-    while (node && !node->isLeaf) {
-        int i = upperBound(node->keys, node->numKeys, k);
-        node = static_cast<BPlusTreeNode*>(node->children[i]);
+T* BPlusTree<T>::search(int key) {
+    Node* current = root;
+    while (current && !current->isLeaf) {
+        int i = 0;
+        while (i < current->numKeys && key >= current->keys[i]) i++;
+        current = static_cast<Node*>(current->children[i]); // desce
     }
-    if (!node) return false;
-    // Busca binária na folha
-    int pos = lowerBound(node->keys, node->numKeys, k);
-    return (pos < node->numKeys && node->keys[pos] == k);
+    if (!current) return nullptr;
+
+    int i = lowerBound(current->keys, current->numKeys, key); // você já tem essa função
+    if (i < current->numKeys && current->keys[i] == key) {
+        return static_cast<T*>(current->children[i]); // payload na folha
+    }
+    return nullptr;
 }
 
 template <typename T>
