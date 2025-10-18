@@ -26,7 +26,7 @@ public:
 
     void insert(int key, T *data) { insert(key, data, root); }
     void insert(int k, T *data, BPlusTreeNode *node); // recursiva
-    T* BPlusTree<T>::search(int k);
+    T* search(int k);
 
 private:
     BPlusTreeNode *root;
@@ -81,22 +81,17 @@ void BPlusTree<T>::insert(int key, T *data, BPlusTreeNode *node) {
     if (node->isLeaf) {
         int pos = lowerBound(node->keys, node->numKeys, key);
         if (pos < node->numKeys && node->keys[pos] == key) {
-            // 2) chave já existe: agregar no payload existente
             auto* pl_existing = static_cast<T*>(node->children[pos]);
             auto* pl_new      = static_cast<T*>(data);
-
-            // segurança: confirma o título normalizado p/ resolver raras colisões de hash
-            if (pl_existing->title_norm == pl_new->title_norm) {
-                // agrega todos os RIDs da nova PL na existente (normalmente é 1 RID)
+            if (pl_existing && pl_new && pl_existing->title_norm == pl_new->title_norm) {
                 pl_existing->rids.insert(pl_existing->rids.end(),
-                                        pl_new->rids.begin(), pl_new->rids.end());
-                delete pl_new; // já agregou; evita vazamento
+                                         pl_new->rids.begin(), pl_new->rids.end());
+                delete pl_new;
                 return;
             }
-            // se caiu aqui, foi colisão de hash com título diferente:
-            // trate como chave "diferente" forçando uma leve perturbação (opcional) ou
-            // deixe seguir para a inserção normal para coexistirem em posições adjacentes.
+            // se hash igual mas título diferente, deixa seguir para inserir como nova chave
         }
+        
         if (node->numKeys < 2 * m) {
             // Nó não está cheio: insere de forma ordenada (in-place)
             int i = node->numKeys - 1;

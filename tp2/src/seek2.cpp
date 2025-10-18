@@ -1,30 +1,19 @@
-//carole
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include "btree.hpp"
-
-// Assumindo que você já tem:
-//  - normalize(const char*)
-//  - fnv1a32(const std::string&)
-//  - struct ArticleDisk (layout “POD” igual ao gravado)
-//  - using RID = int64_t;
-//  - struct PostingList { std::string title_norm; std::vector<RID> rids; };
 
 void seek2(BPlusTree<PostingList>& idxSec, const char* tituloBuscado) {
     std::string norm = normalize(tituloBuscado);
     int key = static_cast<int>(fnv1a32(norm));
 
-    PostingList* pl = idxSec.searchPayload(key);
+    PostingList* pl = idxSec.search(key);   // <— único search
     if (!pl) {
         std::cout << "Nenhum artigo com esse titulo.\n";
         return;
     }
 
     std::ifstream in("artigos.dat", std::ios::binary);
-    if (!in) {
-        std::cerr << "Erro abrindo artigos.dat\n";
-        return;
-    }
+    if (!in) { std::cerr << "Erro abrindo artigos.dat\n"; return; }
 
     const std::size_t recSize = sizeof(ArticleDisk);
     ArticleDisk art;
@@ -34,7 +23,6 @@ void seek2(BPlusTree<PostingList>& idxSec, const char* tituloBuscado) {
         in.seekg(rid);
         if (!in.read(reinterpret_cast<char*>(&art), recSize)) continue;
 
-        // confirma o título (resolve colisões raras do hash)
         if (normalize(art.titulo) == norm) {
             std::cout << "[OK] offset=" << rid
                       << " id=" << art.id
@@ -42,11 +30,10 @@ void seek2(BPlusTree<PostingList>& idxSec, const char* tituloBuscado) {
             encontrados++;
         }
     }
-
-    if (encontrados == 0) {
+    if (encontrados == 0)
         std::cout << "Nenhum artigo com esse titulo (apos confirmacao).\n";
-    }
 }
+
 
 int main() {
     // 1) abrir dados
