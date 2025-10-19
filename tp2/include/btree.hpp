@@ -28,6 +28,7 @@ public:
     
 public:
     BPlusTree();
+    
 
     void insert(int key, T *data) { insert(key, data, root); }
     void insert(int k, T *data, BPlusTreeNode *node); // recursiva

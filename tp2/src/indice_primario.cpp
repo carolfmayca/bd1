@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
     // cria diretório de dados se não existir
     string dbDir = "data/db";
     fs::create_directories(dbDir);
-    string indexPath = dbDir + "/primary_index.dat";
+    string indexPath = dbDir + "/indice_primario.dat";
 
     cout << "[INFO] Lendo arquivo CSV: " << csvPath << endl;
     cout << "[INFO] Criando índice primário em memória..." << endl;
@@ -142,13 +142,18 @@ int main(int argc, char* argv[]) {
     long offset = 0;
     int count = 0;
 
-    while (getline(file, line)) {
+    while (true) {
+        long offset = file.tellg();  
+        string line;
+        if (!getline(file, line)) break;
+
         if (line.empty()) continue;
+
         Article a = parseCSVLine(line);
         index.insert(a.id, reinterpret_cast<long*>(offset));
-        offset += line.size();
         count++;
     }
+
 
     cout << "[INFO] Total de registros processados: " << count << endl;
     savePrimaryIndex(index, indexPath);
