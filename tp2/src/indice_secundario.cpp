@@ -1,87 +1,64 @@
-#include <iostream>
 #include <fstream>
-#include <sstream>
-#include <string>
+#include <iostream>
 #include <vector>
-#include <filesystem>
-#include "btree.hpp"
+#include <algorithm>
+#include "btree.hpp"              // sua B+-tree (sem mudanças)
+#include "sec_index_types.hpp"    // ArticleDisk, normalize, fnv1a32, RID
 
-using namespace std;
-namespace fs = std::filesystem;
+#pragma pack(push,1)
+struct SecIdxHeader { uint32_t magic=0x54495853, version=1, blockSize=4096, recSize=12; uint64_t count=0; };
+struct SecIdxEntry  { uint32_t key; int64_t rid; };
+#pragma pack(pop)
 
-struct ArticleDisk {
-    int32_t id;
-    char    title[301];      // titulo + '\0'
-    int32_t year;
-    char    authors[150];
-    int32_t citacoes;
-    char    atualizacao[20]; // "YYYY-MM-DD HH:MM:SS" + '\0'
-    char    snippet[1025]; // resumo + '\0'
-};
+int main() {
+    // 1) construir B+-tree em RAM como você já faz (se quiser manter)
+    //    e, ao mesmo tempo, acumular os pares (key,rid) num vetor
+    std::ifstream in("data/artigos.dat", std::ios::binary);
+    if (!in) { std::cerr << "Erro abrindo artigos.dat\n"; return 1; }
 
-using RID = int64_t;
-struct PostingList {
-    std::string title_norm;      // para conferir colisão de hash
-    std::vector<RID> rids;       // todos os offsets desse título
-};
+    BPlusTree</*seu payload*/int> dummyTree; // se você ainda quiser montar a árvore
+    // ^ se a sua B+-tree usa outro T (ex.: PostingList) mantenha como está, não importa aqui
 
+    const size_t recSize = sizeof(ArticleDisk);
+    ArticleDisk art{};
+    std::vector<SecIdxEntry> entries;
+    entries.reserve(10000); // só pra reduzir realocações (opcional)
 
+    size_t i = 0;
+    while (in.read(reinterpret_cast<char*>(&art), recSize)) {
+        // if (!art.ocupado) { i++; continue; }  // se usar ocupado
+        if (art.id != 0) {
+            RID rid = static_cast<RID>(i) * static_cast<RID>(recSize);
+            std::string norm = normalize(art.titulo);
+            uint32_t key = fnv1a32(norm);
 
-std::string normalize(const char* t) {
-    std::string s(t ? t : "");
-    auto notsp = [](unsigned char c){ return !std::isspace(c); };
-    auto b = std::find_if(s.begin(), s.end(), notsp);
-    auto e = std::find_if(s.rbegin(), s.rend(), notsp).base();
-    s = (b < e) ? std::string(b, e) : std::string();
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c){ return std::tolower(c); });
-    return s;
-}
+            // (opcional) também insere na sua B+-tree em RAM aqui, como já fazia
+            // dummyTree.insert((int)key, ...payload...);
 
-uint32_t fnv1a32(const std::string& s) {
-    uint32_t h = 2166136261u;
-    for (unsigned char c : s) { h ^= c; h *= 16777619u; }
-    return h;
-}
-
-int main(){
-    const string DATA_FILE = "artigos.dat";
-    const string INDEX_FILE = "indice_secundario.dat";
-
-    fs:: remove(INDEX_FILE); // remove índice antigo para teste limpo
-    BPlusTree<int> btree; // árvore B+ para índice secundário
-    fstream dataFile(DATA_FILE, ios::in | ios::out | ios::binary); // lê arquivo de dados
-    if (!dataFile.is_open()) {
-        cerr << "Erro: Nao foi possivel abrir o arquivo de dados '" << DATA_FILE << "'" << endl;
-        return 1;
+            entries.push_back(SecIdxEntry{ key, rid });
+        }
+        ++i;
     }
+    in.close();
 
-    // Carrega todos os artigos do arquivo de dados e insere na árvore B+
-    dataFile.seekg(0, ios::end);
-    streampos fileSize = dataFile.tellg();
-    dataFile.seekg(0, ios::beg);
-    const int recordSize = sizeof(ArticleDisk);
+    // 2) ordenar por key (para poder fazer busca binária depois)
+    std::sort(entries.begin(), entries.end(),
+              [](const SecIdxEntry& a, const SecIdxEntry& b){
+                  if (a.key != b.key) return a.key < b.key;
+                  return a.rid < b.rid;
+              });
 
-    ArticleDisk art;
+    // 3) gravar idx_title.dat
+    std::ofstream out("idx_title.dat", std::ios::binary | std::ios::trunc);
+    if (!out) { std::cerr << "Erro criando idx_title.dat\n"; return 1; }
 
-    for (int i = 0; i < numRecords; i++) {
-        dataFile.read(reinterpret_cast<char*>(&art), recordSize);
-        if (!dataFile) break;
+    SecIdxHeader hdr;
+    hdr.count = entries.size();
+    out.write(reinterpret_cast<const char*>(&hdr), sizeof(hdr));
+    out.write(reinterpret_cast<const char*>(entries.data()),
+              static_cast<std::streamsize>(entries.size() * sizeof(SecIdxEntry)));
+    out.close();
 
-        if (art.id == 0) continue; // pula vazios
-        int64_t rid = int64_t(i) * recordSize; // OFFSET no artigos.dat
-        std::string norm = normalize(art.title);
-        uint32_t key = fnv1a32(norm);
-            
-        // cria uma posting list com um único RID
-        auto* pl = new PostingList;
-        pl->title_norm = norm;
-        pl->rids.push_back(rid);
-            
-        // insere na B+-tree
-        btree.insert((int)key, pl);
-            
-    }
-
-    dataFile.close();
+    std::cout << "idx_title.dat criado com " << hdr.count << " entradas.\n";
+    return 0;
 }
