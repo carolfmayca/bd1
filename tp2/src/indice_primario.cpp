@@ -20,31 +20,31 @@ struct Article {
 };
 
 // remover aspas e espaços
-string cleanField(string field) {
-    if (!field.empty() && field.front() == '"') field.erase(0, 1);
-    if (!field.empty() && field.back() == '"') field.pop_back();
-    return field;
+string cleanField(string f) {
+    if (!f.empty() && f.front() == '"') f.erase(0, 1);
+    if (!f.empty() && f.back() == '"') f.pop_back();
+    return f;
 }
 
 // parser para uma linha do CSV
 Article parseCSVLine(const string& line) {
-    Article article;
+    Article a;
     string field;
     stringstream ss(line);
     vector<string> fields;
 
     bool insideQuotes = false;
     string current;
-    for (char character : line) {
-        if (character == '"') {
+    for (char c : line) {
+        if (c == '"') {
             insideQuotes = !insideQuotes;
             continue;
         }
-        if (character == ';' && !insideQuotes) {
+        if (c == ';' && !insideQuotes) {
             fields.push_back(current);
             current.clear();
         } else {
-            current += character;
+            current += c;
         }
     }
     fields.push_back(current); // último campo
@@ -55,33 +55,33 @@ Article parseCSVLine(const string& line) {
     }
 
     try {
-        article.id = stoi(fields[0]);
+        a.id = stoi(fields[0]);
     } catch (...) {
         cerr << "[ERRO] ID inválido: '" << fields[0] << "' em linha: " << line << endl;
         throw;
     }
 
-    article.title = fields[1];
+    a.title = fields[1];
 
     try {
-        article.year = stoi(fields[2]);
+        a.year = stoi(fields[2]);
     } catch (...) {
         cerr << "[ERRO] Ano inválido: '" << fields[2] << "' em linha: " << line << endl;
         throw;
     }
 
-    article.authors = fields[3];
+    a.authors = fields[3];
 
     try {
-        article.citations = stoi(fields[4]);
+        a.citations = stoi(fields[4]);
     } catch (...) {
         cerr << "[ERRO] Citações inválidas: '" << fields[4] << "' em linha: " << line << endl;
-        article.citations = 0;
+        a.citations = 0;
     }
 
-    article.datetime = fields[5];
-    article.snippet = fields[6];
-    return article;
+    a.datetime = fields[5];
+    a.snippet = fields[6];
+    return a;
 }
 
 void dumpLeafKeys(std::ofstream& out, typename BPlusTree<long>::BPlusTreeNode* node) {
@@ -144,8 +144,8 @@ int main(int argc, char* argv[]) {
 
     while (getline(file, line)) {
         if (line.empty()) continue;
-        Article article = parseCSVLine(line);
-        index.insert(article.id, reinterpret_cast<long*>(offset));
+        Article a = parseCSVLine(line);
+        index.insert(a.id, reinterpret_cast<long*>(offset));
         offset += line.size();
         count++;
     }
