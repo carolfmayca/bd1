@@ -3,11 +3,11 @@
 (2m + 1)* 8 + 2m * 8 + 2m * 4 <= 4096
 m ≃ 102,2 ==> m = 100 
 */
-#include <cstring>  // para std::memset
 
-#define BLOCK_SIZE 4096 // padrão do SO
-#define KEY_SIZE 8 // tamanho da chave (int)
-#define POINTER_SIZE 8 // sistema 64 bits
+#define BLOCK_SIZE 4096
+#define KEY_SIZE 4
+#define POINTER_SIZE 8
+#define M 100
 
 template <typename T>
 class BPlusTree {
@@ -26,7 +26,7 @@ public:
 
     void insert(int key, T *data) { insert(key, data, root); }
     void insert(int k, T *data, BPlusTreeNode *node); // recursiva
-    T* search(int k);
+    bool search(int k);
 
 private:
     BPlusTreeNode *root;
@@ -53,7 +53,7 @@ Construção da árvore B+
 */
 template <typename T>
 BPlusTree<T>::BPlusTree() {
-    this->m = ((BLOCK_SIZE - POINTER_SIZE)/(4*POINTER_SIZE + 2*KEY_SIZE));  // define o valor de m
+    this->m = M;  // define o valor de m
     this->root = newNode(true); // nó raiz folha vazio
 }
 
@@ -79,19 +79,6 @@ Parâmetros:
 template <typename T>
 void BPlusTree<T>::insert(int key, T *data, BPlusTreeNode *node) {
     if (node->isLeaf) {
-        int pos = lowerBound(node->keys, node->numKeys, key);
-        if (pos < node->numKeys && node->keys[pos] == key) {
-            auto* pl_existing = static_cast<T*>(node->children[pos]);
-            auto* pl_new      = static_cast<T*>(data);
-            if (pl_existing && pl_new && pl_existing->title_norm == pl_new->title_norm) {
-                pl_existing->rids.insert(pl_existing->rids.end(),
-                                         pl_new->rids.begin(), pl_new->rids.end());
-                delete pl_new;
-                return;
-            }
-            // se hash igual mas título diferente, deixa seguir para inserir como nova chave
-        }
-        
         if (node->numKeys < 2 * m) {
             // Nó não está cheio: insere de forma ordenada (in-place)
             int i = node->numKeys - 1;
@@ -329,18 +316,15 @@ int BPlusTree<T>::lowerBound(const int *arr, int n, int key) {
 
 // Busca uma chave na árvore B+
 template <typename T>
-T* BPlusTree<T>::search(int key) {
-    Node* current = root;
-    while (current && !current->isLeaf) {
-        int i = 0;
-        while (i < current->numKeys && key >= current->keys[i]) i++;
-        current = static_cast<Node*>(current->children[i]); // desce
+bool BPlusTree<T>::search(int k) {
+    BPlusTreeNode *node = root;
+    // Desce até folha seguindo os ponteiros corretos
+    while (node && !node->isLeaf) {
+        int i = upperBound(node->keys, node->numKeys, k);
+        node = static_cast<BPlusTreeNode*>(node->children[i]);
     }
-    if (!current) return nullptr;
-
-    int i = lowerBound(current->keys, current->numKeys, key); // você já tem essa função
-    if (i < current->numKeys && current->keys[i] == key) {
-        return static_cast<T*>(current->children[i]); // payload na folha
-    }
-    return nullptr;
+    if (!node) return false;
+    // Busca binária na folha
+    int pos = lowerBound(node->keys, node->numKeys, k);
+    return (pos < node->numKeys && node->keys[pos] == k);
 }
