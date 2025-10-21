@@ -36,12 +36,13 @@ std::vector<std::string> parseCSVLine(const std::string& linha) {
     return campos;
 }
 
-// Função que lê o CSV e preenche o arquivo de dados com hash
-void processarCSV(const std::string& csvPath, HashingFile& hashingFile) {
+// Função que lê o CSV, preenche o arquivo de dados e retorna os IDs inseridos
+std::vector<int> processarCSV(const std::string& csvPath, HashingFile& hashingFile) {
+    std::vector<int> idsInseridos;
     std::ifstream csvFile(csvPath);
     if (!csvFile.is_open()) {
         std::cerr << "Erro: Nao foi possivel abrir o arquivo CSV '" << csvPath << "'" << std::endl;
-        return;
+        return idsInseridos; // Retorna vetor vazio
     }
 
     std::cout << "\n--- Lendo arquivo " << csvPath << " e inserindo dados ---" << std::endl;
@@ -65,25 +66,24 @@ void processarCSV(const std::string& csvPath, HashingFile& hashingFile) {
                 strncpy(art.autores, campos[3].c_str(), 150);
                 art.citacoes = std::stoi(campos[4]);
                 strncpy(art.atualizacao, campos[5].c_str(), 19);
-                // Trata o caso do snippet ser "NULL"
                 if (campos[6] != "NULL") {
                     strncpy(art.snippet, campos[6].c_str(), 1024);
                 }
                 
                 hashingFile.inserirArtigo(art);
                 registrosInseridos++;
+                idsInseridos.push_back(art.id); // Guarda o ID inserido com sucesso
             } catch (const std::exception& e) {
-                // AVISO DE ERRO DE CONVERSÃO
                 std::cerr << "--> ERRO DE CONVERSAO na linha " << numeroLinha << ". Verifique os campos numericos. Erro: " << e.what() << std::endl;
             }
         } else {
-            // AVISO DE ERRO DE PARSING (NÚMERO DE CAMPOS)
             std::cerr << "--> AVISO: Linha " << numeroLinha << " ignorada. Esperava 7 campos, mas encontrou " << campos.size() << "." << std::endl;
             std::cerr << "    Conteudo da linha: " << linha << std::endl;
         }
     }
     std::cout << "--- Insercao finalizada. " << registrosInseridos << " registros inseridos. ---\n" << std::endl;
     csvFile.close();
+    return idsInseridos;
 }
 
 // --- FUNÇÕES DE TESTE E EXIBIÇÃO ---
@@ -102,7 +102,7 @@ int main() {
     const std::string NOME_ARQUIVO_DADOS = "artigos.dat";
     const std::string NOME_ARQUIVO_INDICE = "tabela_hash.idx";
     const std::string NOME_CSV_ENTRADA = "../data/artigo.csv";
-    const int TAMANHO_TABELA = 2000; 
+    const int TAMANHO_TABELA = 10000; 
 
     // Limpa o ambiente para um teste novo
     remove(NOME_ARQUIVO_DADOS.c_str());
@@ -113,13 +113,13 @@ int main() {
     // 1. Cria a instância da classe de Hashing
     HashingFile meuArquivoHash(NOME_ARQUIVO_DADOS, TAMANHO_TABELA);
 
-    // 2. Processa o CSV para popular o arquivo de dados
-    processarCSV(NOME_CSV_ENTRADA, meuArquivoHash);
+    // 2. Processa o CSV e obtém a lista de IDs que foram inseridos
+    std::vector<int> idsParaTestar = processarCSV(NOME_CSV_ENTRADA, meuArquivoHash);
 
-    // 3. Testa a busca por TODOS os 30 artigos para ver quais foram inseridos
-    std::cout << "--- Verificando a insercao de todos os 30 artigos ---" << std::endl;
-    for (int id = 1; id <= 100000; ++id) {
-        int blocosLidos = 0; 
+    // 3. Testa a busca por TODOS os artigos que estavam no arquivo de entrada
+    std::cout << "--- Verificando a insercao de " << idsParaTestar.size() << " artigos ---" << std::endl;
+    for (int id : idsParaTestar) {
+        int blocosLidos = 0;
         std::cout << "Buscando Artigo ID " << id << "..." << std::endl;
         Artigo res = meuArquivoHash.buscarPorId(id, blocosLidos);
         imprimirArtigo(res);
