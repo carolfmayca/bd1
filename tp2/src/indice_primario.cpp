@@ -6,6 +6,15 @@
 #include <filesystem>
 #include "btree.hpp"
 
+//como criar árvore
+// template <typename T>
+// class BPlusTreePrimary : public BPlusTree<T, 102> {
+// public:
+    // BPlusTreePrimary(const std::string& filename) 
+        // : BPlusTree<T, 102>(filename) {
+    // }
+// };
+
 using namespace std;
 namespace fs = std::filesystem;
 

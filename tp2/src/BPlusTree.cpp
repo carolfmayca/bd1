@@ -3,6 +3,8 @@
 #include <cstring>
 #include <string>
 
+#define BLOCK_SIZE 4096 // padrão SO
+
 // Forward declaration
 template <typename T, int M_VALUE> class BPlusTree;
 
@@ -104,7 +106,7 @@ public:
         int numKeys;
         bool isLeaf;
         // Offsets de arquivo (long)
-        long childrenOffsets[2 * M_VALUE];
+        long childrenOffsets[2 * M_VALUE + 1];
         // O `nextLeaf` é crucial para B+ Tree e deve ser um offset
         long nextLeafOffset;
     };
@@ -113,7 +115,7 @@ protected:
     static constexpr int m = M_VALUE; // ordem da árvore
     
 public:
-    BPlusTree(const std::string& filename, int key_size); // Construtor precisa do nome do arquivo e do tamanho da chave
+    BPlusTree(const std::string& filename);
     ~BPlusTree();
 
     void insert(int key, T *data);
@@ -147,7 +149,7 @@ private:
 
 // Construtor: Inicializa FileManager e carrega a raiz (offset)
 template <typename T, int M_VALUE>
-BPlusTree<T, M_VALUE>::BPlusTree(const std::string& filename, int key_size) {
+BPlusTree<T, M_VALUE>::BPlusTree(const std::string& filename) {
     fileManager = new FileManager(filename, m);
     
     // Lê o cabeçalho do arquivo
