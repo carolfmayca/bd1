@@ -19,9 +19,10 @@ private:
         long nextFreeOffset;
         int m;
     } header;
+    mutable std::size_t pagesRead = 0;
 
 public:
-    FileManager(const std::string& filename, int treeM) : header({0, sizeof(FileHeader), treeM}) {
+    FileManager(const std::string& filename, int treeM) : header({0, 4096, treeM}) {
         file.open(filename, std::ios::in | std::ios::out | std::ios::binary);
 
         if (!file.is_open()) {
@@ -33,13 +34,15 @@ public:
             // Reabre para leitura/escrita
             file.open(filename, std::ios::in | std::ios::out | std::ios::binary);
             
+            // Inicializa nextFreeOffset antes de escrever o header
+            nextFreeOffset = header.nextFreeOffset;
             // Escreve o cabeçalho inicial
             writeHeader();
         } else {
             // Se existe, lê o cabeçalho
             readHeader();
+            nextFreeOffset = header.nextFreeOffset;
         }
-        nextFreeOffset = header.nextFreeOffset;
     }
 
     ~FileManager() {
@@ -82,9 +85,9 @@ public:
         if (offset == 0) return false;
         
         file.seekg(offset, std::ios::beg);
-        // Implementar a desserialização aqui. 
-        // Simplificação: se o nó é menor ou igual a BLOCK_SIZE, pode ser lido de uma vez.
-        file.read(reinterpret_cast<char*>(&node), BLOCK_SIZE); 
+        // Usar o tamanho real da estrutura
+        file.read(reinterpret_cast<char*>(&node), sizeof(typename BPlusTree<T, M_VALUE>::BPlusTreeNode)); 
+        pagesRead++; // Incrementa contador de blocos lidos
         return file.good();
     }
 
@@ -92,10 +95,22 @@ public:
     template <typename T, int M_VALUE>
     void writeNode(long offset, const typename BPlusTree<T, M_VALUE>::BPlusTreeNode& node) {
         file.seekp(offset, std::ios::beg);
-        // Implementar a serialização aqui.
-        file.write(reinterpret_cast<const char*>(&node), BLOCK_SIZE);
+        // Usar o tamanho real da estrutura em vez de BLOCK_SIZE
+        file.write(reinterpret_cast<const char*>(&node), sizeof(typename BPlusTree<T, M_VALUE>::BPlusTreeNode));
         file.flush(); // Garantir que está escrito no disco
     }
+    
+    // Método para escrever dados arbitrários no arquivo
+    template <typename T>
+    void writeData(long offset, const T* data) {
+        file.seekp(offset, std::ios::beg);
+        file.write(reinterpret_cast<const char*>(data), sizeof(T));
+        file.flush();
+    }
+    
+    void resetStats() { pagesRead = 0; }
+    std::size_t getPagesRead() const { return pagesRead; }
+
 };
 
 template <typename T, int M_VALUE = 100>
@@ -122,6 +137,10 @@ public:
     // Retorna o OFFSET do nó folha que contém a chave, ou 0 se não encontrar
     long search(int k); 
     int getM() const { return m; }
+    
+    // Métodos para estatísticas de I/O
+    void resetStats() { fileManager->resetStats(); }
+    std::size_t getPagesRead() const { return fileManager->getPagesRead(); }
 
 private:
     long rootOffset;
@@ -174,6 +193,7 @@ BPlusTree<T, M_VALUE>::~BPlusTree() {
 template <typename T, int M_VALUE>
 long BPlusTree<T, M_VALUE>::newNode(bool leaf) {
     long offset = fileManager->getNewOffset();
+    
     typename BPlusTree<T, M_VALUE>::BPlusTreeNode tempNode; 
     
     // Inicialização do nó em memória
@@ -191,10 +211,11 @@ long BPlusTree<T, M_VALUE>::newNode(bool leaf) {
 
 template <typename T, int M_VALUE>
 void BPlusTree<T, M_VALUE>::insert(int key, T *data) {
-    // 1. O T *data é tipicamente o offset do registro de dados no arquivo.
-    // Usamos reinterpret_cast para simular que o T* passado pelo usuário é, na verdade,
-    // o offset (long) para onde o dado T está ou será armazenado.
-    long dataOffset = reinterpret_cast<long>(data); 
+    // Armazena o dado no arquivo e obtém o offset
+    long dataOffset = fileManager->getNewOffset();
+    
+    // Escreve o dado no arquivo no offset alocado
+    fileManager->writeData(dataOffset, data);
 
     if (rootOffset == 0) {
         rootOffset = newNode(true);
@@ -202,7 +223,6 @@ void BPlusTree<T, M_VALUE>::insert(int key, T *data) {
     }
     
     // Chamada à função recursiva.
-    // A função recursiva agora deve aceitar o long dataOffset.
     insert(key, dataOffset, rootOffset);
 }
 /*
@@ -215,7 +235,11 @@ Parâmetros:
 template <typename T, int M_VALUE>
 void BPlusTree<T, M_VALUE>::insert(int key, long dataOffset, long nodeOffset) {
     typename BPlusTree<T, M_VALUE>::BPlusTreeNode node;
-    fileManager->readNode<T, M_VALUE>(nodeOffset, node);
+    bool readSuccess = fileManager->readNode<T, M_VALUE>(nodeOffset, node);
+    
+    if (!readSuccess) {
+        return;
+    }
 
     if (node.isLeaf) {
         if (node.numKeys < 2 * m) {
@@ -507,7 +531,9 @@ long BPlusTree<T, M_VALUE>::search(int k) {
     long currentOffset = rootOffset;
     BPlusTreeNode currentNode;
 
-    if (currentOffset == 0) return 0; // Árvore vazia
+    if (currentOffset == 0) {
+        return 0; // Árvore vazia
+    }
 
     // Desce até folha
     while (true) {

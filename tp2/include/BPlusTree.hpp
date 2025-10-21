@@ -84,9 +84,8 @@ public:
         if (offset == 0) return false;
         
         file.seekg(offset, std::ios::beg);
-        // Implementar a desserialização aqui. 
-        // Simplificação: se o nó é menor ou igual a BLOCK_SIZE, pode ser lido de uma vez.
-        file.read(reinterpret_cast<char*>(&node), BLOCK_SIZE); 
+        // Usar o tamanho real da estrutura 
+        file.read(reinterpret_cast<char*>(&node), sizeof(typename BPlusTree<T, M_VALUE>::BPlusTreeNode)); 
         return file.good();
     }
 
@@ -94,9 +93,17 @@ public:
     template <typename T, int M_VALUE>
     void writeNode(long offset, const typename BPlusTree<T, M_VALUE>::BPlusTreeNode& node) {
         file.seekp(offset, std::ios::beg);
-        // Implementar a serialização aqui.
-        file.write(reinterpret_cast<const char*>(&node), BLOCK_SIZE);
+        // Usar o tamanho real da estrutura
+        file.write(reinterpret_cast<const char*>(&node), sizeof(typename BPlusTree<T, M_VALUE>::BPlusTreeNode));
         file.flush(); // Garantir que está escrito no disco
+    }
+    
+    // Método para escrever dados arbitrários no arquivo
+    template <typename T>
+    void writeData(long offset, const T* data) {
+        file.seekp(offset, std::ios::beg);
+        file.write(reinterpret_cast<const char*>(data), sizeof(T));
+        file.flush();
     }
 };
 
@@ -121,6 +128,9 @@ public:
     void insert(int key, T *data);
     long search(int k); 
     int getM() const { return m; }
+    void resetStats() { fileManager->resetStats(); }
+    std::size_t getPagesRead() const { return fileManager->getPagesRead(); }
+
 
 private:
     long rootOffset;
