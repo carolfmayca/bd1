@@ -101,8 +101,8 @@ void imprimirArtigo(const Artigo& art) {
 int main() {
     const std::string NOME_ARQUIVO_DADOS = "artigos.dat";
     const std::string NOME_ARQUIVO_INDICE = "tabela_hash.idx";
-    const std::string NOME_CSV_ENTRADA = "../data/teste_artigos.csv";
-    const int TAMANHO_TABELA = 50; 
+    const std::string NOME_CSV_ENTRADA = "../data/artigo.csv";
+    const int TAMANHO_TABELA = 500; 
 
     // Limpa o ambiente para um teste novo
     remove(NOME_ARQUIVO_DADOS.c_str());
@@ -116,9 +116,9 @@ int main() {
     // 2. Processa o CSV para popular o arquivo de dados
     processarCSV(NOME_CSV_ENTRADA, meuArquivoHash);
 
-    // 3. Testa a busca por TODOS os 15 artigos para ver quais foram inseridos
-    std::cout << "--- Verificando a insercao de todos os 15 artigos ---" << std::endl;
-    for (int id = 1; id <= 15; ++id) {
+    // 3. Testa a busca por TODOS os 30 artigos para ver quais foram inseridos
+    std::cout << "--- Verificando a insercao de todos os 30 artigos ---" << std::endl;
+    for (int id = 1; id <= 30; ++id) {
         int blocosLidos = 0;
         std::cout << "Buscando Artigo ID " << id << "..." << std::endl;
         Artigo res = meuArquivoHash.buscarPorId(id, blocosLidos);

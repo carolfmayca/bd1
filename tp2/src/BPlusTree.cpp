@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include <string>
+#include <vector> // NOVO: Para armazenar múltiplos offsets
 
 #define BLOCK_SIZE 4096 // padrão SO
 
@@ -136,6 +137,8 @@ public:
     void insert(int key, T *data);
     // Retorna o OFFSET do nó folha que contém a chave, ou 0 se não encontrar
     long search(int k); 
+    // NOVO: Retorna todos os offsets de dados associados a uma chave
+    std::vector<long> searchAll(int k);
     int getM() const { return m; }
     
     // Métodos para estatísticas de I/O
@@ -563,6 +566,27 @@ long BPlusTree<T, M_VALUE>::search(int k) {
             return 0;
         }
     }
+}
+
+// NOVO: Busca todas as ocorrências de uma chave e retorna os offsets correspondentes
+template <typename T, int M_VALUE>
+std::vector<long> BPlusTree<T, M_VALUE>::searchAll(int k) {
+    std::vector<long> results;
+    long leafOffset = search(k);
+    
+    if (leafOffset == 0) return results; // Chave não encontrada
+    
+    BPlusTreeNode leafNode;
+    fileManager->readNode<T, M_VALUE>(leafOffset, leafNode);
+    
+    // Encontra todas as ocorrências da chave neste nó
+    for (int i = 0; i < leafNode.numKeys; i++) {
+        if (leafNode.keys[i] == k) {
+            results.push_back(leafNode.childrenOffsets[i]);
+        }
+    }
+    
+    return results;
 }
 
 template <typename T, int M_VALUE>
