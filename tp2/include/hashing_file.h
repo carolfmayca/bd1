@@ -41,6 +41,6 @@ private:
 
     std::string nomeArquivo;
     int TAMANHO_TABELA;
-    std::fstream arquivo;
+    std::fstream arquivo; 
 };
 

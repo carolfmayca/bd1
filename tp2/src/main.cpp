@@ -102,7 +102,7 @@ int main() {
     const std::string NOME_ARQUIVO_DADOS = "artigos.dat";
     const std::string NOME_ARQUIVO_INDICE = "tabela_hash.idx";
     const std::string NOME_CSV_ENTRADA = "../data/artigo.csv";
-    const int TAMANHO_TABELA = 500; 
+    const int TAMANHO_TABELA = 2000; 
 
     // Limpa o ambiente para um teste novo
     remove(NOME_ARQUIVO_DADOS.c_str());
@@ -118,8 +118,8 @@ int main() {
 
     // 3. Testa a busca por TODOS os 30 artigos para ver quais foram inseridos
     std::cout << "--- Verificando a insercao de todos os 30 artigos ---" << std::endl;
-    for (int id = 1; id <= 30; ++id) {
-        int blocosLidos = 0;
+    for (int id = 1; id <= 100000; ++id) {
+        int blocosLidos = 0; 
         std::cout << "Buscando Artigo ID " << id << "..." << std::endl;
         Artigo res = meuArquivoHash.buscarPorId(id, blocosLidos);
         imprimirArtigo(res);

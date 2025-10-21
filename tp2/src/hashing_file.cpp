@@ -2,32 +2,24 @@
 #include <iostream>
 #include <vector>
 
-// Construtor
 HashingFile::HashingFile(const std::string& filename, int table_size)
     : nomeArquivo(filename), TAMANHO_TABELA(table_size) {
     arquivo.open(nomeArquivo, std::ios::in | std::ios::out | std::ios::binary);
     if (!arquivo.is_open()) {
-        std::cout << "Arquivo de dados '" << nomeArquivo << "' nao encontrado. Criando novo conjunto de arquivos..." << std::endl;
-        criarArquivos();
-    } else {
-        std::cout << "Arquivo de dados '" << nomeArquivo << "' aberto com sucesso." << std::endl;
+        std::cerr << "AVISO: Arquivo de dados '" << nomeArquivo << "' nao encontrado." << std::endl;
     }
 }
 
-// Destrutor
 HashingFile::~HashingFile() {
     if (arquivo.is_open()) {
         arquivo.close();
     }
 }
 
-// Cria os dois arquivos necessários: o de dados e o de índice (tabela hash)
 void HashingFile::criarArquivos() {
-    arquivo.open(nomeArquivo, std::ios::out | std::ios::binary);
-    if (arquivo.is_open()) {
-        std::cout << "Arquivo '" << nomeArquivo << "' criado." << std::endl;
-        arquivo.close();
-    }
+    std::ofstream dataFile(nomeArquivo, std::ios::out | std::ios::binary);
+    dataFile.close();
+    std::cout << "Arquivo '" << nomeArquivo << "' criado." << std::endl;
 
     std::string nomeTabela = "tabela_hash.idx";
     std::ofstream tabela(nomeTabela, std::ios::out | std::ios::binary);
@@ -39,25 +31,23 @@ void HashingFile::criarArquivos() {
         tabela.close();
         std::cout << "Arquivo de indice '" << nomeTabela << "' criado com " << TAMANHO_TABELA << " posicoes." << std::endl;
     }
-    
-    arquivo.open(nomeArquivo, std::ios::in | std::ios::out | std::ios::binary);
 }
 
-// Insere um novo artigo usando encadeamento
 long HashingFile::inserirArtigo(Artigo& novoArtigo) {
     if (!arquivo.is_open()) {
-        std::cerr << "Erro: Arquivo de dados nao esta aberto." << std::endl;
-        return -1;
+        criarArquivos();
+        arquivo.open(nomeArquivo, std::ios::in | std::ios::out | std::ios::binary);
+        if(!arquivo.is_open()){
+             std::cerr << "Erro: Nao foi possivel abrir o arquivo de dados para insercao." << std::endl;
+             return -1;
+        }
     }
-
-    novoArtigo.proximo_offset = -1;
 
     int endereco = novoArtigo.id % TAMANHO_TABELA;
     std::string nomeTabela = "tabela_hash.idx";
-
     std::fstream tabela(nomeTabela, std::ios::in | std::ios::out | std::ios::binary);
     if (!tabela.is_open()) {
-        std::cerr << "Erro: Nao foi possivel abrir o arquivo de indice." << std::endl;
+        std::cerr << "Erro: Nao foi possivel abrir o arquivo de indice '" << nomeTabela << "'." << std::endl;
         return -1;
     }
 
@@ -65,78 +55,98 @@ long HashingFile::inserirArtigo(Artigo& novoArtigo) {
     tabela.seekg(endereco * sizeof(long));
     tabela.read(reinterpret_cast<char*>(&offset_inicio_cadeia), sizeof(long));
 
-    arquivo.seekg(0, std::ios::end);
-    long nova_posicao = arquivo.tellg();
-
     if (offset_inicio_cadeia == -1) {
+        // A cadeia está vazia. Criamos um novo bloco.
+        Bloco novo_bloco = {};
+        novo_bloco.artigos[0] = novoArtigo;
+        novo_bloco.num_registos_usados = 1;
+        novo_bloco.proximo_bloco_offset = -1;
+
+        arquivo.seekg(0, std::ios::end);
+        long nova_posicao_bloco = arquivo.tellg();
+        arquivo.write(reinterpret_cast<const char*>(&novo_bloco), sizeof(Bloco));
+
+        // Atualiza a tabela de hash para apontar para este novo bloco.
         tabela.seekp(endereco * sizeof(long));
-        tabela.write(reinterpret_cast<const char*>(&nova_posicao), sizeof(long));
+        tabela.write(reinterpret_cast<const char*>(&nova_posicao_bloco), sizeof(long));
     } else {
-        long offset_atual = offset_inicio_cadeia;
-        Artigo artigo_temp;
+        // A cadeia já existe. Procuramos por um espaço livre.
+        long offset_bloco_atual = offset_inicio_cadeia;
+        Bloco bloco_temp;
         while (true) {
-            arquivo.seekg(offset_atual);
-            arquivo.read(reinterpret_cast<char*>(&artigo_temp), sizeof(Artigo));
-            if (artigo_temp.proximo_offset == -1) {
-                artigo_temp.proximo_offset = nova_posicao;
-                arquivo.seekp(offset_atual);
-                arquivo.write(reinterpret_cast<const char*>(&artigo_temp), sizeof(Artigo));
+            arquivo.seekg(offset_bloco_atual);
+            arquivo.read(reinterpret_cast<char*>(&bloco_temp), sizeof(Bloco));
+
+            if (bloco_temp.num_registos_usados < REGISTOS_POR_BLOCO) {
+                // Encontrámos espaço neste bloco!
+                bloco_temp.artigos[bloco_temp.num_registos_usados] = novoArtigo;
+                bloco_temp.num_registos_usados++;
+                arquivo.seekp(offset_bloco_atual);
+                arquivo.write(reinterpret_cast<const char*>(&bloco_temp), sizeof(Bloco));
                 break;
+            } else if (bloco_temp.proximo_bloco_offset == -1) {
+                // Bloco atual está cheio e é o último da cadeia. Criamos um novo bloco de overflow.
+                Bloco novo_bloco_overflow = {};
+                novo_bloco_overflow.artigos[0] = novoArtigo;
+                novo_bloco_overflow.num_registos_usados = 1;
+                novo_bloco_overflow.proximo_bloco_offset = -1;
+
+                arquivo.seekg(0, std::ios::end);
+                long nova_posicao_bloco_overflow = arquivo.tellg();
+                arquivo.write(reinterpret_cast<const char*>(&novo_bloco_overflow), sizeof(Bloco));
+
+                // Atualizamos o bloco anterior para apontar para este novo.
+                bloco_temp.proximo_bloco_offset = nova_posicao_bloco_overflow;
+                arquivo.seekp(offset_bloco_atual);
+                arquivo.write(reinterpret_cast<const char*>(&bloco_temp), sizeof(Bloco));
+                break;
+            } else {
+                // Bloco atual está cheio, vamos para o próximo.
+                offset_bloco_atual = bloco_temp.proximo_bloco_offset;
             }
-            offset_atual = artigo_temp.proximo_offset;
         }
     }
-
-    arquivo.seekp(nova_posicao);
-    arquivo.write(reinterpret_cast<const char*>(&novoArtigo), sizeof(Artigo));
-    
-
     tabela.close();
-    return nova_posicao;
+    return 0; // O retorno agora é menos significativo, poderíamos retornar o offset do bloco.
 }
 
-// IMPLEMENTAÇÃO DA BUSCA
 Artigo HashingFile::buscarPorId(int id, int& blocosLidos) {
     blocosLidos = 0;
-    Artigo artigo_vazio = {};
-    artigo_vazio.ocupado = false;
+    if (!arquivo.is_open()) return {};
 
-    if (!arquivo.is_open()) {
-        std::cerr << "Erro: Arquivo de dados nao esta aberto para busca." << std::endl;
-        return artigo_vazio;
-    }
-
-    // 1. Calcula o hash para encontrar o bucket de início
     int endereco = id % TAMANHO_TABELA;
     std::string nomeTabela = "tabela_hash.idx";
+    std::fstream tabela(nomeTabela, std::ios::in | std::ios::binary);
+    if (!tabela.is_open()) return {};
 
-    std::ifstream tabela(nomeTabela, std::ios::in | std::ios::binary);
-    if (!tabela.is_open()) {
-        std::cerr << "Erro: Nao foi possivel abrir o arquivo de indice para busca." << std::endl;
-        return artigo_vazio;
-    }
-
-    // 2. Lê o ponteiro para o início da cadeia de colisão
-    long offset_atual;
+    long offset_bloco_atual;
     tabela.seekg(endereco * sizeof(long));
-    tabela.read(reinterpret_cast<char*>(&offset_atual), sizeof(long));
+    tabela.read(reinterpret_cast<char*>(&offset_bloco_atual), sizeof(long));
     tabela.close();
 
-    // 3. Percorre a cadeia (lista encadeada) no arquivo de dados
-    while (offset_atual != -1) {
-        arquivo.seekg(offset_atual);
-        Artigo artigo_temp;
-        arquivo.read(reinterpret_cast<char*>(&artigo_temp), sizeof(Artigo));
+    while (offset_bloco_atual != -1) {
+        Bloco bloco_temp;
+        arquivo.seekg(offset_bloco_atual);
+        arquivo.read(reinterpret_cast<char*>(&bloco_temp), sizeof(Bloco));
         blocosLidos++;
 
-        if (artigo_temp.id == id) {
-            // Encontrou!
-            return artigo_temp;
+        for (int i = 0; i < bloco_temp.num_registos_usados; ++i) {
+            if (bloco_temp.artigos[i].id == id) {
+                return bloco_temp.artigos[i]; // Encontrado!
+            }
         }
-        // Se não for o ID certo, pula para o próximo da cadeia
-        offset_atual = artigo_temp.proximo_offset;
+        offset_bloco_atual = bloco_temp.proximo_bloco_offset;
     }
 
-    // Se o loop terminar, o ID não foi encontrado na cadeia
-    return artigo_vazio;
+    return {}; // Não encontrado
 }
+
+long HashingFile::getTotalBlocos() {
+    if (!arquivo.is_open() || sizeof(Bloco) == 0) {
+        return 0;
+    }
+    arquivo.seekg(0, std::ios::end);
+    long tamanho_total_bytes = arquivo.tellg();
+    return tamanho_total_bytes / sizeof(Bloco);
+}
+
