@@ -4,11 +4,13 @@
 #include <iostream>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #define BLOCK_SIZE 4096 // padrão SO
+#define M 102 // Ordem da árvore B+ fixada
 
 // Forward declaration
-template <typename T, int M_VALUE> class BPlusTree;
+template <typename T> class BPlusTree;
 
 class FileManager {
 private:
@@ -79,23 +81,29 @@ public:
     }
 
     // Leitura de um nó do arquivo
-    template <typename T, int M_VALUE>
-    bool readNode(long offset, typename BPlusTree<T, M_VALUE>::BPlusTreeNode& node) {
+    template <typename T>
+    bool readNode(long offset, typename BPlusTree<T>::BPlusTreeNode& node) {
         if (offset == 0) return false;
         
         file.seekg(offset, std::ios::beg);
         // Usar o tamanho real da estrutura 
-        file.read(reinterpret_cast<char*>(&node), sizeof(typename BPlusTree<T, M_VALUE>::BPlusTreeNode)); 
+        file.read(reinterpret_cast<char*>(&node), sizeof(typename BPlusTree<T>::BPlusTreeNode)); 
         return file.good();
     }
 
     // Escrita de um nó no arquivo
-    template <typename T, int M_VALUE>
-    void writeNode(long offset, const typename BPlusTree<T, M_VALUE>::BPlusTreeNode& node) {
+    template <typename T>
+    void writeNode(long offset, const typename BPlusTree<T>::BPlusTreeNode& node) {
         file.seekp(offset, std::ios::beg);
         // Usar o tamanho real da estrutura
-        file.write(reinterpret_cast<const char*>(&node), sizeof(typename BPlusTree<T, M_VALUE>::BPlusTreeNode));
+        file.write(reinterpret_cast<const char*>(&node), sizeof(typename BPlusTree<T>::BPlusTreeNode));
         file.flush(); // Garantir que está escrito no disco
+    }
+    
+    // Novo método para alocar um nó no arquivo
+    template <typename T>
+    long allocateNode() {
+        return getNewOffset();
     }
     
     // Método para escrever dados arbitrários no arquivo
@@ -107,19 +115,20 @@ public:
     }
 };
 
-template <typename T, int M_VALUE = 100>
+template <typename T>
 class BPlusTree {
 public:
     struct BPlusTreeNode {
-        int keys [2 * M_VALUE]; // máximo de chaves
+        int keys [2 * M]; // máximo de chaves
         int numKeys;
         bool isLeaf;
-        long childrenOffsets[2 * M_VALUE + 1]; // Para 2*M chaves, precisa de 2*M+1 ponteiros
+        long childrenOffsets[2 * M + 1]; // Para 2*M chaves, precisa de 2*M+1 ponteiros
         long nextLeafOffset;
+        long rightSibling; // Para navegação sequencial em folhas
     };
 
 protected:
-    static constexpr int m = M_VALUE; // ordem da árvore
+    static constexpr int m = M; // ordem da árvore
     
 public:
     BPlusTree(const std::string& filename);
@@ -127,9 +136,12 @@ public:
 
     void insert(int key, T *data);
     long search(int k); 
+    std::vector<long> searchAll(int k); // para indice secundário
+
     int getM() const { return m; }
-    void resetStats() { fileManager->resetStats(); }
-    std::size_t getPagesRead() const { return fileManager->getPagesRead(); }
+    // void resetStats() { fileManager->resetStats(); }
+    // std::size_t getPagesRead() const { return fileManager->getPagesRead(); }
+    // long getTotalBlocks() { return fileManager->getTotalBlocks(); }
 
 
 private:

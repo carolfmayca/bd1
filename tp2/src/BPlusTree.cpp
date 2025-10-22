@@ -5,9 +5,10 @@
 #include <vector> // NOVO: Para armazenar múltiplos offsets
 
 #define BLOCK_SIZE 4096 // padrão SO
+#define M 102 // Ordem da árvore B+: mínimo M, máximo 2*M chaves
 
 // Forward declaration
-template <typename T, int M_VALUE> class BPlusTree;
+template <typename T> class BPlusTree;
 
 class FileManager {
 private:
@@ -81,23 +82,23 @@ public:
     }
 
     // Leitura de um nó do arquivo
-    template <typename T, int M_VALUE>
-    bool readNode(long offset, typename BPlusTree<T, M_VALUE>::BPlusTreeNode& node) {
+    template <typename T>
+    bool readNode(long offset, typename BPlusTree<T>::BPlusTreeNode& node) {
         if (offset == 0) return false;
         
         file.seekg(offset, std::ios::beg);
         // Usar o tamanho real da estrutura
-        file.read(reinterpret_cast<char*>(&node), sizeof(typename BPlusTree<T, M_VALUE>::BPlusTreeNode)); 
+        file.read(reinterpret_cast<char*>(&node), sizeof(typename BPlusTree<T>::BPlusTreeNode)); 
         pagesRead++; // Incrementa contador de blocos lidos
         return file.good();
     }
 
     // Escrita de um nó no arquivo
-    template <typename T, int M_VALUE>
-    void writeNode(long offset, const typename BPlusTree<T, M_VALUE>::BPlusTreeNode& node) {
+    template <typename T>
+    void writeNode(long offset, const typename BPlusTree<T>::BPlusTreeNode& node) {
         file.seekp(offset, std::ios::beg);
         // Usar o tamanho real da estrutura em vez de BLOCK_SIZE
-        file.write(reinterpret_cast<const char*>(&node), sizeof(typename BPlusTree<T, M_VALUE>::BPlusTreeNode));
+        file.write(reinterpret_cast<const char*>(&node), sizeof(typename BPlusTree<T>::BPlusTreeNode));
         file.flush(); // Garantir que está escrito no disco
     }
     
@@ -114,21 +115,21 @@ public:
 
 };
 
-template <typename T, int M_VALUE = 100>
+template <typename T>
 class BPlusTree {
 public:
     struct BPlusTreeNode {
-        int keys [2 * M_VALUE]; // máximo de chaves
+        int keys [2 * M]; // máximo de chaves
         int numKeys;
         bool isLeaf;
         // Offsets de arquivo (long)
-        long childrenOffsets[2 * M_VALUE + 1];
+        long childrenOffsets[2 * M + 1];
         // O `nextLeaf` é crucial para B+ Tree e deve ser um offset
         long nextLeafOffset;
     };
 
 protected:
-    static constexpr int m = M_VALUE; // ordem da árvore
+    static constexpr int m = M; // ordem da árvore
     
 public:
     BPlusTree(const std::string& filename);
@@ -170,8 +171,8 @@ private:
 
 
 // Construtor: Inicializa FileManager e carrega a raiz (offset)
-template <typename T, int M_VALUE>
-BPlusTree<T, M_VALUE>::BPlusTree(const std::string& filename) {
+template <typename T>
+BPlusTree<T>::BPlusTree(const std::string& filename) {
     fileManager = new FileManager(filename, m);
     
     // Lê o cabeçalho do arquivo
@@ -185,19 +186,19 @@ BPlusTree<T, M_VALUE>::BPlusTree(const std::string& filename) {
     }
 }
 // Destrutor
-template <typename T, int M_VALUE>
-BPlusTree<T, M_VALUE>::~BPlusTree() {
+template <typename T>
+BPlusTree<T>::~BPlusTree() {
     fileManager->updateRootOffset(rootOffset);
     delete fileManager;
 }
 
 
 
-template <typename T, int M_VALUE>
-long BPlusTree<T, M_VALUE>::newNode(bool leaf) {
+template <typename T>
+long BPlusTree<T>::newNode(bool leaf) {
     long offset = fileManager->getNewOffset();
     
-    typename BPlusTree<T, M_VALUE>::BPlusTreeNode tempNode; 
+    typename BPlusTree<T>::BPlusTreeNode tempNode; 
     
     // Inicialização do nó em memória
     tempNode.isLeaf = leaf;
@@ -208,12 +209,12 @@ long BPlusTree<T, M_VALUE>::newNode(bool leaf) {
     std::memset(tempNode.childrenOffsets, 0, sizeof(tempNode.childrenOffsets)); 
 
     // Escreve o nó inicializado no disco
-    fileManager->writeNode<T, M_VALUE>(offset, tempNode);
+    fileManager->writeNode<T>(offset, tempNode);
     return offset;
 }
 
-template <typename T, int M_VALUE>
-void BPlusTree<T, M_VALUE>::insert(int key, T *data) {
+template <typename T>
+void BPlusTree<T>::insert(int key, T *data) {
     // Armazena o dado no arquivo e obtém o offset
     long dataOffset = fileManager->getNewOffset();
     
@@ -235,10 +236,10 @@ Parâmetros:
 - data: ponteiro para os dados a serem armazenados (na folha)
 - node: ponteiro para o nó atual (chamada recursiva; normalmente iniciar por 'root')
 */
-template <typename T, int M_VALUE>
-void BPlusTree<T, M_VALUE>::insert(int key, long dataOffset, long nodeOffset) {
-    typename BPlusTree<T, M_VALUE>::BPlusTreeNode node;
-    bool readSuccess = fileManager->readNode<T, M_VALUE>(nodeOffset, node);
+template <typename T>
+void BPlusTree<T>::insert(int key, long dataOffset, long nodeOffset) {
+    typename BPlusTree<T>::BPlusTreeNode node;
+    bool readSuccess = fileManager->readNode<T>(nodeOffset, node);
     
     if (!readSuccess) {
         return;
@@ -259,7 +260,7 @@ void BPlusTree<T, M_VALUE>::insert(int key, long dataOffset, long nodeOffset) {
             node.childrenOffsets[i + 1] = dataOffset;
             node.numKeys++;
 
-            fileManager->writeNode<T, M_VALUE>(nodeOffset, node);
+            fileManager->writeNode<T>(nodeOffset, node);
         } else {
             // Nó está cheio - dividir folha e promover separador
             splitLeaf(nodeOffset, key, dataOffset);
@@ -278,16 +279,16 @@ void BPlusTree<T, M_VALUE>::insert(int key, long dataOffset, long nodeOffset) {
 /*
 Divide nó folha cheio e promove a menor chave do novo nó (separator key).
 */
-template <typename T, int M_VALUE>
 // CORREÇÃO: A assinatura deve receber long para o dado
-void BPlusTree<T, M_VALUE>::splitLeaf(long nodeOffset, int key, long dataOffset) { 
+template <typename T>
+void BPlusTree<T>::splitLeaf(long nodeOffset, int key, long dataOffset) { 
     // 1. LER O NÓ ORIGINAL DO DISCO
-    typename BPlusTree<T, M_VALUE>::BPlusTreeNode node;
-    fileManager->readNode<T, M_VALUE>(nodeOffset, node);
+    typename BPlusTree<T>::BPlusTreeNode node;
+    fileManager->readNode<T>(nodeOffset, node);
 
     // CORREÇÃO: Não usar new/delete. Usar arrays de tamanho fixo na pilha.
-    int tmpKeys[2 * M_VALUE + 1];
-    long tmpChildrenOffsets[2 * M_VALUE + 1]; 
+    int tmpKeys[2 * M + 1];
+    long tmpChildrenOffsets[2 * M + 1]; 
 
     // Lógica de merge e cópia para arrays temporários (CORRIGIDO PARA OFFSETS)
     int i = 0, j = 0;
@@ -319,13 +320,13 @@ void BPlusTree<T, M_VALUE>::splitLeaf(long nodeOffset, int key, long dataOffset)
         node.childrenOffsets[i] = tmpChildrenOffsets[i];
     }
     // Zera os slots restantes para o novo nó
-    std::memset(&node.keys[splitPoint], 0, (2*M_VALUE - splitPoint) * sizeof(int));
+    std::memset(&node.keys[splitPoint], 0, (2*M - splitPoint) * sizeof(int));
 
     // 3. CRIAR NOVO NÓ FOLHA (DIREITA)
     long newLeafOffset = newNode(true);
-    typename BPlusTree<T, M_VALUE>::BPlusTreeNode newLeaf;
+    typename BPlusTree<T>::BPlusTreeNode newLeaf;
     // LER o nó inicializado (embora newNode já o tenha inicializado com zeros)
-    fileManager->readNode<T, M_VALUE>(newLeafOffset, newLeaf); 
+    fileManager->readNode<T>(newLeafOffset, newLeaf); 
 
     int k = 0;
     for (i = splitPoint; i < totalKeys; i++, k++) {
@@ -348,15 +349,15 @@ void BPlusTree<T, M_VALUE>::splitLeaf(long nodeOffset, int key, long dataOffset)
     if (nodeOffset == rootOffset) {
         // CRIA NOVA RAIZ INTERNA
         long newRootOffset = newNode(false);
-        typename BPlusTree<T, M_VALUE>::BPlusTreeNode newRoot;
-        fileManager->readNode<T, M_VALUE>(newRootOffset, newRoot); // LER O NOVO NÓ
+        typename BPlusTree<T>::BPlusTreeNode newRoot;
+        fileManager->readNode<T>(newRootOffset, newRoot); // LER O NOVO NÓ
         
         newRoot.keys[0] = promoteKey;
         newRoot.childrenOffsets[0] = nodeOffset;
         newRoot.childrenOffsets[1] = newLeafOffset;
         newRoot.numKeys = 1;
         
-        fileManager->writeNode<T, M_VALUE>(newRootOffset, newRoot); // ESCREVER A NOVA RAIZ
+        fileManager->writeNode<T>(newRootOffset, newRoot); // ESCREVER A NOVA RAIZ
         
         rootOffset = newRootOffset; // ATUALIZA O OFFSET RAIZ GLOBAL
         fileManager->updateRootOffset(newRootOffset); // Salva no cabeçalho
@@ -366,37 +367,37 @@ void BPlusTree<T, M_VALUE>::splitLeaf(long nodeOffset, int key, long dataOffset)
     }
     
     // 7. ESCREVER NÓS ALTERADOS NO DISCO (RMW completo)
-    fileManager->writeNode<T, M_VALUE>(nodeOffset, node);
-    fileManager->writeNode<T, M_VALUE>(newLeafOffset, newLeaf);
+    fileManager->writeNode<T>(nodeOffset, node);
+    fileManager->writeNode<T>(newLeafOffset, newLeaf);
 }
 
 /*
 Inserção em nó interno (semelhante à de folha, mas deslocando também ponteiros de filhos).
 Pode disparar divisão de nó interno.
 */
-template <typename T, int M_VALUE>
-void BPlusTree<T, M_VALUE>::insertInternal(int key, long parentOffset, long childOffset) {
+template <typename T>
+void BPlusTree<T>::insertInternal(int key, long parentOffset, long childOffset) {
     if (parentOffset == 0) {
         // Se parentOffset for 0, significa que o nó original foi dividido
         // e a nova raiz precisa ser criada.
         long newRootOffset = newNode(false);
-        typename BPlusTree<T, M_VALUE>::BPlusTreeNode newRoot;
-        fileManager->readNode<T, M_VALUE>(newRootOffset, newRoot); // R: LER O NOVO NÓ
+        typename BPlusTree<T>::BPlusTreeNode newRoot;
+        fileManager->readNode<T>(newRootOffset, newRoot); // R: LER O NOVO NÓ
 
         newRoot.keys[0] = key;
         newRoot.childrenOffsets[0] = rootOffset; // rootOffset ainda aponta para a raiz antiga/esquerda
         newRoot.childrenOffsets[1] = childOffset;
         newRoot.numKeys = 1;
         
-        fileManager->writeNode<T, M_VALUE>(newRootOffset, newRoot); // W: ESCREVER
+        fileManager->writeNode<T>(newRootOffset, newRoot); // W: ESCREVER
         
         rootOffset = newRootOffset;
         fileManager->updateRootOffset(newRootOffset);
         return;
     }
 
-    typename BPlusTree<T, M_VALUE>::BPlusTreeNode parentNode;
-    fileManager->readNode<T, M_VALUE>(parentOffset, parentNode); // R: LER O NÓ PAI
+    typename BPlusTree<T>::BPlusTreeNode parentNode;
+    fileManager->readNode<T>(parentOffset, parentNode); // R: LER O NÓ PAI
 
     if (parentNode.numKeys < 2 * m) {
         // Pai não está cheio: insere de forma ordenada (RMW)
@@ -412,7 +413,7 @@ void BPlusTree<T, M_VALUE>::insertInternal(int key, long parentOffset, long chil
         parentNode.childrenOffsets[i + 2] = childOffset;
         parentNode.numKeys++;
 
-        fileManager->writeNode<T, M_VALUE>(parentOffset, parentNode); // W: ESCREVER
+        fileManager->writeNode<T>(parentOffset, parentNode); // W: ESCREVER
         return;
     }
 
@@ -423,15 +424,15 @@ void BPlusTree<T, M_VALUE>::insertInternal(int key, long parentOffset, long chil
 /*
 Divisão de nó interno: insere (key, rightChild), e então promove a chave do meio.
 */
-template <typename T, int M_VALUE>
-void BPlusTree<T, M_VALUE>::splitInternal(long parentOffset, int promoteKey, long rightChildOffset) {
+template <typename T>
+void BPlusTree<T>::splitInternal(long parentOffset, int promoteKey, long rightChildOffset) {
     // 1. LER O NÓ ORIGINAL DO DISCO
-    typename BPlusTree<T, M_VALUE>::BPlusTreeNode parentNode;
-    fileManager->readNode<T, M_VALUE>(parentOffset, parentNode);
+    typename BPlusTree<T>::BPlusTreeNode parentNode;
+    fileManager->readNode<T>(parentOffset, parentNode);
 
     // 2. Usar arrays de tamanho fixo na pilha (substitui new/delete)
-    int tmpKeys[2 * M_VALUE + 1];
-    long tmpChildrenOffsets[2 * M_VALUE + 2]; 
+    int tmpKeys[2 * M + 1];
+    long tmpChildrenOffsets[2 * M + 2]; 
 
     // Lógica de merge ordenado (copiar chaves e offsets do nó original + chave promovida/ponteiro)
     int i, j, pos = 0;
@@ -465,8 +466,8 @@ void BPlusTree<T, M_VALUE>::splitInternal(long parentOffset, int promoteKey, lon
     
     // 4. Criar nó direito com a metade direita (após mid)
     long newRightOffset = newNode(false);
-    typename BPlusTree<T, M_VALUE>::BPlusTreeNode rightNode;
-    fileManager->readNode<T, M_VALUE>(newRightOffset, rightNode); // R: LER O NOVO NÓ
+    typename BPlusTree<T>::BPlusTreeNode rightNode;
+    fileManager->readNode<T>(newRightOffset, rightNode); // R: LER O NOVO NÓ
 
     int k = 0;
     for (i = mid + 1; i < totalKeys; ++i, ++k) {
@@ -480,15 +481,15 @@ void BPlusTree<T, M_VALUE>::splitInternal(long parentOffset, int promoteKey, lon
     if (parentOffset == rootOffset) {
         // Cria nova raiz
         long newRootOffset = newNode(false);
-        typename BPlusTree<T, M_VALUE>::BPlusTreeNode newRoot;
-        fileManager->readNode<T, M_VALUE>(newRootOffset, newRoot); // R: LER O NOVO NÓ
+        typename BPlusTree<T>::BPlusTreeNode newRoot;
+        fileManager->readNode<T>(newRootOffset, newRoot); // R: LER O NOVO NÓ
         
         newRoot.keys[0] = upKey;
         newRoot.childrenOffsets[0] = parentOffset;
         newRoot.childrenOffsets[1] = newRightOffset;
         newRoot.numKeys = 1;
 
-        fileManager->writeNode<T, M_VALUE>(newRootOffset, newRoot); // W: ESCREVER NOVA RAIZ
+        fileManager->writeNode<T>(newRootOffset, newRoot); // W: ESCREVER NOVA RAIZ
         rootOffset = newRootOffset;
         fileManager->updateRootOffset(newRootOffset);
     } else {
@@ -498,15 +499,15 @@ void BPlusTree<T, M_VALUE>::splitInternal(long parentOffset, int promoteKey, lon
     }
 
     // 6. ESCREVER NÓS ALTERADOS NO DISCO (RMW completo)
-    fileManager->writeNode<T, M_VALUE>(parentOffset, parentNode);
-    fileManager->writeNode<T, M_VALUE>(newRightOffset, rightNode);
+    fileManager->writeNode<T>(parentOffset, parentNode);
+    fileManager->writeNode<T>(newRightOffset, rightNode);
 }
 
 // ---------- buscas e utilidades ----------
 
 // Retorna primeiro índice onde arr[i] > key (busca binária)
-template <typename T, int M_VALUE>
-int BPlusTree<T, M_VALUE>::upperBound(const int *arr, int n, int key) {
+template <typename T>
+int BPlusTree<T>::upperBound(const int *arr, int n, int key) {
     int l = 0, r = n;
     while (l < r) {
         int mid = (l + r) / 2;
@@ -517,8 +518,8 @@ int BPlusTree<T, M_VALUE>::upperBound(const int *arr, int n, int key) {
 }
 
 // Retorna primeiro índice onde arr[i] >= key (busca binária)
-template <typename T, int M_VALUE>
-int BPlusTree<T, M_VALUE>::lowerBound(const int *arr, int n, int key) {
+template <typename T>
+int BPlusTree<T>::lowerBound(const int *arr, int n, int key) {
     int l = 0, r = n;
     while (l < r) {
         int mid = (l + r) / 2;
@@ -529,8 +530,8 @@ int BPlusTree<T, M_VALUE>::lowerBound(const int *arr, int n, int key) {
 }
 
 // Busca uma chave na árvore B+
-template <typename T, int M_VALUE>
-long BPlusTree<T, M_VALUE>::search(int k) {
+template <typename T>
+long BPlusTree<T>::search(int k) {
     long currentOffset = rootOffset;
     BPlusTreeNode currentNode;
 
@@ -541,7 +542,7 @@ long BPlusTree<T, M_VALUE>::search(int k) {
     // Desce até folha
     while (true) {
         // 1. Lê o nó do disco para a variável temporária 'currentNode'
-        fileManager->readNode<T, M_VALUE>(currentOffset, currentNode); 
+        fileManager->readNode<T>(currentOffset, currentNode); 
         
         // 2. Verifica se é a folha
         if (currentNode.isLeaf) {
@@ -569,15 +570,15 @@ long BPlusTree<T, M_VALUE>::search(int k) {
 }
 
 // NOVO: Busca todas as ocorrências de uma chave e retorna os offsets correspondentes
-template <typename T, int M_VALUE>
-std::vector<long> BPlusTree<T, M_VALUE>::searchAll(int k) {
+template <typename T>
+std::vector<long> BPlusTree<T>::searchAll(int k) {
     std::vector<long> results;
     long leafOffset = search(k);
     
     if (leafOffset == 0) return results; // Chave não encontrada
     
     BPlusTreeNode leafNode;
-    fileManager->readNode<T, M_VALUE>(leafOffset, leafNode);
+    fileManager->readNode<T>(leafOffset, leafNode);
     
     // Encontra todas as ocorrências da chave neste nó
     for (int i = 0; i < leafNode.numKeys; i++) {
@@ -589,14 +590,14 @@ std::vector<long> BPlusTree<T, M_VALUE>::searchAll(int k) {
     return results;
 }
 
-template <typename T, int M_VALUE>
-long BPlusTree<T, M_VALUE>::findParent(long subrootOffset, long childOffset) {
+template <typename T>
+long BPlusTree<T>::findParent(long subrootOffset, long childOffset) {
     // 0 é usado como offset NULO
     if (subrootOffset == childOffset || subrootOffset == 0) return 0; 
 
-    typename BPlusTree<T, M_VALUE>::BPlusTreeNode parentNode;
+    typename BPlusTree<T>::BPlusTreeNode parentNode;
     // R: LER O NÓ PAI (subroot)
-    fileManager->readNode<T, M_VALUE>(subrootOffset, parentNode); 
+    fileManager->readNode<T>(subrootOffset, parentNode); 
 
     // Verifica se o filho é um dos ponteiros diretos
     for (int i = 0; i <= parentNode.numKeys; ++i) {
@@ -618,3 +619,5 @@ long BPlusTree<T, M_VALUE>::findParent(long subrootOffset, long childOffset) {
     }
     return 0; // Pai não encontrado
 }
+// Instanciação explícita para o índice secundário
+template class BPlusTree<long>;
