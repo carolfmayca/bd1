@@ -158,6 +158,8 @@ int main(int argc, char* argv[]){
     std::cout << "Buscando titulo: '" << titulo << "'\n";
 
     BPlusTree<long> idx("../data/db/sec_index.dat");
+    idx.resetStats();
     search_bplus_index(idx, titulo);
+    std::cout << "Blocos da árvore lidos: " << idx.getPagesRead() << std::endl;
     return 0;
 }
