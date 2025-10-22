@@ -66,14 +66,26 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
     }
     int key = static_cast<int>(fnv1a32(norm));
 
-    // Busca na B+Tree usando search - retorna offset onde o RID está armazenado
-    long resultOffset = idx.search(key);
+    // Busca na B+Tree - para índice secundário, deveria retornar o RID diretamente
+    long leafOffset = idx.search(key);
     
-    if (resultOffset == 0) {
+    if (leafOffset == 0) {
         std::cout << "Titulo nao encontrado no indice secundario.\n";
         return false;
     }
 
+    // O search() retorna o offset do nó folha, não o RID
+    // Precisamos usar searchAll() ou modificar a busca para retornar o valor correto
+    std::vector<long> results = idx.searchAll(key);
+    
+    if (results.empty()) {
+        std::cout << "Titulo nao encontrado no indice secundario.\n";
+        return false;
+    }
+    
+    // Para um índice secundário, os resultados são offsets onde os RIDs estão armazenados
+    long ridOffset = results[0];
+    
     // Ler o RID real do arquivo de índice
     std::ifstream idxFile("../data/db/sec_index.dat", std::ios::binary);
     if (!idxFile.is_open()) {
@@ -82,14 +94,14 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
     }
     
     long actualRID;
-    idxFile.seekg(resultOffset);
+    idxFile.seekg(ridOffset);
     if (!idxFile.read(reinterpret_cast<char*>(&actualRID), sizeof(long))) {
         std::cout << "Erro ao ler RID do indice.\n";
         idxFile.close();
         return false;
     }
     idxFile.close();
-
+    
     std::cout << "Encontrado! RID=" << actualRID << std::endl;
     
     // Busca o registro no arquivo de dados usando estrutura de blocos
@@ -113,6 +125,7 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
                     std::cout << "Titulo: " << art.titulo << std::endl;
                     std::cout << "Ano: " << art.ano << std::endl;
                     std::cout << "Autores: " << art.autores << std::endl;
+                    std::cout << "Atualizacao: " << art.atualizacao << std::endl;
                     std::cout << "Citacoes: " << art.citacoes << std::endl;
                 } else {
                     std::cout << "Registro nao ocupado.\n";
