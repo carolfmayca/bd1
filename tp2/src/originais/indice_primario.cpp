@@ -4,7 +4,7 @@
 #include <vector>
 #include <chrono>
 #include <algorithm>
-#include "BPlusTree.cpp"
+#include "BPlusTree.hpp"
 
 struct ArticleDisk {
     bool ocupado;
@@ -31,7 +31,6 @@ struct IndexEntry {
     long rid;
 };
 
-// Função que constrói o índice primário
 static bool build_primary_index_bplus(BPlusTree<long>& idx) {
     std::ifstream in("data/db/artigos.dat", std::ios::binary);
     if (!in.is_open()) {

@@ -1,4 +1,4 @@
-#include "BPlusTree.cpp"
+#include "BPlusTree.hpp"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -27,7 +27,6 @@ struct Bloco {
     long proximo_bloco_offset;
 };
 
-// Funções de normalização
 static inline std::string trim(const std::string& s) {
     std::size_t start = s.find_first_not_of(" \t\n\r");
     if (start == std::string::npos) return "";
@@ -65,7 +64,6 @@ struct IndexEntry {
     long rid;
 };
 
-// Função para construir o índice secundário usando B+Tree OTIMIZADA
 static bool build_secondary_index_bplus(BPlusTree<long>& idx) {
     std::ifstream in("data/db/artigos.dat", std::ios::binary);
     if (!in.is_open()) {
@@ -80,7 +78,6 @@ static bool build_secondary_index_bplus(BPlusTree<long>& idx) {
     std::size_t registrosVazios = 0;
     std::size_t totalRegistrosProcessados = 0;
 
-    // OTIMIZAÇÃO: Coleta em memória e ordena antes de inserir
     std::vector<IndexEntry> entries;
     entries.reserve(1200000);
 
@@ -90,10 +87,8 @@ static bool build_secondary_index_bplus(BPlusTree<long>& idx) {
     int titulosValidosExibidos = 0;
     
     while (in.read(reinterpret_cast<char*>(&bloco), blocoSize)) {
-        // Processa cada artigo no bloco
         for (int i = 0; i < REGISTOS_POR_BLOCO && i < bloco.num_registos_usados; i++) {
             ArticleDisk& art = bloco.artigos[i];
-            // RID agora é o índice do artigo (não o offset em bytes)
             long rid = static_cast<long>(blocoIndex * REGISTOS_POR_BLOCO + i);
             
             totalRegistrosProcessados++;
@@ -127,30 +122,27 @@ static bool build_secondary_index_bplus(BPlusTree<long>& idx) {
 
     std::cout << "Ordenando " << entries.size() << " entradas..." << std::endl;
     
-    // CHAVE DA OTIMIZAÇÃO: Inserção ordenada reduz splits drasticamente
     std::sort(entries.begin(), entries.end(), 
               [](const IndexEntry& a, const IndexEntry& b) {
                   return a.key < b.key;
               });
 
-    std::cout << "Inserindo em bulk na B+Tree (M=102)..." << std::endl;
+    std::cout << "Inserindo na B+Tree (M=102)..." << std::endl;
     auto insert_start = std::chrono::high_resolution_clock::now();
     
-    // OTIMIZAÇÃO AGRESSIVA: Inserção ultra-rápida em lotes grandes
     const size_t MEGA_BATCH_SIZE = 100000; // Lotes de 100k para máxima eficiência
     
     for (size_t start_idx = 0; start_idx < entries.size(); start_idx += MEGA_BATCH_SIZE) {
         size_t end_idx = std::min(start_idx + MEGA_BATCH_SIZE, entries.size());
         
-        // Insere mega-lote sem verificações frequentes
         for (size_t j = start_idx; j < end_idx; ++j) {
             idx.insert(entries[j].key, &entries[j].rid);
         }
-        
-        // Progresso menos frequente para não impactar performance
+
+        // inserção em lotes
         auto now = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - insert_start).count();
-        std::cout << "MEGA-LOTE: " << end_idx << "/" << entries.size() 
+        std::cout << end_idx << "/" << entries.size() 
                   << " (" << elapsed << "s) - " 
                   << (end_idx * 100 / entries.size()) << "%" << std::endl;
     }
@@ -167,7 +159,6 @@ static bool build_secondary_index_bplus(BPlusTree<long>& idx) {
     return true;
 }
 
-// Função principal - só constrói o índice
 int main(int argc, char* argv[]) {
     BPlusTree<long> idx("data/db/sec_index.dat");
     return build_secondary_index_bplus(idx) ? 0 : 1;
