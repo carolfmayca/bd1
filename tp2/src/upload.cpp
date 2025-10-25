@@ -98,6 +98,11 @@ static bool insereHashing(){
     int numeroLinha = 0;
     HashingFile arquivoHash(NOME_ARQUIVO_DADOS, TAMANHO_TABELA_HASH);
 
+    // --- INÍCIO DA MODIFICAÇÃO (1/2) ---
+    // Adiciona o relógio para o log
+    auto start = std::chrono::high_resolution_clock::now();
+    // --- FIM DA MODIFICAÇÃO (1/2) ---
+
     while (std::getline(csvFile, linha)) {
         numeroLinha++;
         if (linha.empty()) continue;
@@ -120,6 +125,16 @@ static bool insereHashing(){
 
                 arquivoHash.inserirArtigo(art);
                 registrosInseridos++;
+
+                // --- INÍCIO DA MODIFICAÇÃO (2/2) ---
+                // Adiciona log a cada 50.000 registros
+                if (registrosInseridos > 0 && registrosInseridos % 50000 == 0) {
+                    auto now = std::chrono::high_resolution_clock::now();
+                    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
+                    std::cout << "[LOG] " << registrosInseridos << " registros inseridos no hashing... (" << elapsed << "s)" << std::endl;
+                }
+                // --- FIM DA MODIFICAÇÃO (2/2) ---
+
             } catch (const std::exception& e) {
                 std::cerr << "--> ERRO DE CONVERSAO na linha " << numeroLinha << ". Verifique os campos numericos. Erro: " << e.what() << std::endl;
             }
@@ -132,7 +147,6 @@ static bool insereHashing(){
     csvFile.close();
     return true;
 }
-
 
 
 static bool insereIdxPrim(){
