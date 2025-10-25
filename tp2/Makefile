@@ -63,7 +63,7 @@ $(SEEK2_EXEC): $(SRC_DIR)/seek2.cpp | $(BIN_DIR)
 # --- Alvo para Limpeza ---
 # Remove os executáveis e diretórios criados
 clean:
-	rm -rf $(BIN_DIR) $(DATA_DIR)/artigos.dat $(DATA_DIR)/tabela_hash.idx $(DATA_DIR)/prim_index.idx $(DATA_DIR)/sec_index.idx
+	rm -rf $(BIN_DIR) $(DATA_DIR)/artigos.dat
 
 # Explicação das variáveis especiais:
 # $@ : O nome do alvo da regra (ex: bin/upload)

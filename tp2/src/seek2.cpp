@@ -6,6 +6,8 @@
 #include <cctype>
 #include <cstdint>
 #include <vector>
+#include <locale>
+
 
 struct ArticleDisk {
     bool ocupado;
@@ -34,16 +36,10 @@ static inline std::string trim(const std::string& s) {
     return s.substr(start, end - start + 1);
 }
 
-static inline std::string tolower_copy(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-    return s;
-}
 
 static std::string normalize(const char* tituloRaw) {
     std::string s(tituloRaw ? tituloRaw : "");
     s = trim(s);
-    s = tolower_copy(s);
     return s;
 }
 
@@ -67,7 +63,6 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
     }
     int key = static_cast<int>(fnv1a32(norm));
 
-    // Busca na B+Tree - para índice secundário, deveria retornar o RID diretamente
     long leafOffset = idx.search(key);
     
     if (leafOffset == 0) {
@@ -75,8 +70,6 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
         return false;
     }
 
-    // O search() retorna o offset do nó folha, não o RID
-    // Precisamos usar searchAll() ou modificar a busca para retornar o valor correto
     std::vector<long> results = idx.searchAll(key);
     
     if (results.empty()) {
@@ -86,13 +79,11 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
     
     std::cout << "Encontradas " << results.size() << " ocorrencias!\n";
     
-    // Processar todos os resultados
     for (size_t idx = 0; idx < results.size(); idx++) {
         long ridOffset = results[idx];
         
         std::cout << "\n--- Resultado " << (idx + 1) << " ---\n";
         
-        // Ler o RID real do arquivo de índice
         std::ifstream idxFile("bin/sec_index.idx", std::ios::binary);
         if (!idxFile.is_open()) {
             std::cout << "ERRO: Nao foi possivel abrir arquivo de indice.\n";
@@ -110,19 +101,15 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
         
         std::cout << "RID=" << actualRID << std::endl;
         
-        // Busca o registro no arquivo de dados usando estrutura de blocos
         std::ifstream dataFile("data/db/artigos.dat", std::ios::binary);
         if (dataFile.is_open()) {
-            // RID agora é o índice do artigo
             size_t articleIndex = static_cast<size_t>(actualRID);
             size_t blockIndex = articleIndex / REGISTOS_POR_BLOCO;
             size_t positionInBlock = articleIndex % REGISTOS_POR_BLOCO;
             
-            // Ler o bloco correto
             Bloco bloco{};
             dataFile.seekg(blockIndex * sizeof(Bloco));
             if (dataFile.read(reinterpret_cast<char*>(&bloco), sizeof(Bloco))) {
-                // Verificar se a posição é válida no bloco
                 if (positionInBlock < REGISTOS_POR_BLOCO && positionInBlock < bloco.num_registos_usados) {
                     ArticleDisk& art = bloco.artigos[positionInBlock];
                     
@@ -157,6 +144,8 @@ int main(int argc, char* argv[]){
         std::cerr << "Uso: " << argv[0] << " <Titulo>\n";
         return 1;
     }
+    std::setlocale(LC_ALL, "en_US.UTF-8");
+
 
     std::string titulo;
     for (int i = 1; i < argc; ++i) {

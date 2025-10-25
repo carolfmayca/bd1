@@ -60,16 +60,11 @@ static inline std::string trim(const std::string& s) {
     return s.substr(start, end - start + 1);
 }
 
-static inline std::string tolower_copy(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-    return s;
-}
 
 static std::string normalize(const char* tituloRaw) {
     std::string s(tituloRaw ? tituloRaw : "");
     s = trim(s);
-    s = tolower_copy(s);
+    // Removido tolower_copy(s) - agora case-sensitive
     return s;
 }
 
