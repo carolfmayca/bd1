@@ -1,10 +1,11 @@
-#include "../include/BPlusTree.hpp"
+#include "BPlusTree.hpp"
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <vector>
 
 struct ArticleDisk {
     bool ocupado;
@@ -83,62 +84,69 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
         return false;
     }
     
-    // Para um índice secundário, os resultados são offsets onde os RIDs estão armazenados
-    long ridOffset = results[0];
+    std::cout << "Encontradas " << results.size() << " ocorrencias!\n";
     
-    // Ler o RID real do arquivo de índice
-    std::ifstream idxFile("bin/sec_index.idx", std::ios::binary);
-    if (!idxFile.is_open()) {
-        std::cout << "Erro ao abrir arquivo de indice.\n";
-        return false;
-    }
-    
-    long actualRID;
-    idxFile.seekg(ridOffset);
-    if (!idxFile.read(reinterpret_cast<char*>(&actualRID), sizeof(long))) {
-        std::cout << "Erro ao ler RID do indice.\n";
-        idxFile.close();
-        return false;
-    }
-    idxFile.close();
-    
-    std::cout << "Encontrado! RID=" << actualRID << std::endl;
-    
-    // Busca o registro no arquivo de dados usando estrutura de blocos
-    std::ifstream dataFile("../data/db/artigos.dat", std::ios::binary);
-    if (dataFile.is_open()) {
-        // RID agora é o índice do artigo
-        size_t articleIndex = static_cast<size_t>(actualRID);
-        size_t blockIndex = articleIndex / REGISTOS_POR_BLOCO;
-        size_t positionInBlock = articleIndex % REGISTOS_POR_BLOCO;
+    // Processar todos os resultados
+    for (size_t idx = 0; idx < results.size(); idx++) {
+        long ridOffset = results[idx];
         
-        // Ler o bloco correto
-        Bloco bloco{};
-        dataFile.seekg(blockIndex * sizeof(Bloco));
-        if (dataFile.read(reinterpret_cast<char*>(&bloco), sizeof(Bloco))) {
-            // Verificar se a posição é válida no bloco
-            if (positionInBlock < REGISTOS_POR_BLOCO && positionInBlock < bloco.num_registos_usados) {
-                ArticleDisk& art = bloco.artigos[positionInBlock];
-                
-                if (art.ocupado) {
-                    std::cout << "ID: " << art.id << std::endl;
-                    std::cout << "Titulo: " << art.titulo << std::endl;
-                    std::cout << "Ano: " << art.ano << std::endl;
-                    std::cout << "Autores: " << art.autores << std::endl;
-                    std::cout << "Atualizacao: " << art.atualizacao << std::endl;
-                    std::cout << "Citacoes: " << art.citacoes << std::endl;
+        std::cout << "\n--- Resultado " << (idx + 1) << " ---\n";
+        
+        // Ler o RID real do arquivo de índice
+        std::ifstream idxFile("bin/sec_index.idx", std::ios::binary);
+        if (!idxFile.is_open()) {
+            std::cout << "ERRO: Nao foi possivel abrir arquivo de indice.\n";
+            continue;
+        }
+        
+        long actualRID;
+        idxFile.seekg(ridOffset);
+        if (!idxFile.read(reinterpret_cast<char*>(&actualRID), sizeof(long))) {
+            std::cout << "ERRO: Nao foi possivel ler RID do indice (offset=" << ridOffset << ").\n";
+            idxFile.close();
+            continue;
+        }
+        idxFile.close();
+        
+        std::cout << "RID=" << actualRID << std::endl;
+        
+        // Busca o registro no arquivo de dados usando estrutura de blocos
+        std::ifstream dataFile("data/db/artigos.dat", std::ios::binary);
+        if (dataFile.is_open()) {
+            // RID agora é o índice do artigo
+            size_t articleIndex = static_cast<size_t>(actualRID);
+            size_t blockIndex = articleIndex / REGISTOS_POR_BLOCO;
+            size_t positionInBlock = articleIndex % REGISTOS_POR_BLOCO;
+            
+            // Ler o bloco correto
+            Bloco bloco{};
+            dataFile.seekg(blockIndex * sizeof(Bloco));
+            if (dataFile.read(reinterpret_cast<char*>(&bloco), sizeof(Bloco))) {
+                // Verificar se a posição é válida no bloco
+                if (positionInBlock < REGISTOS_POR_BLOCO && positionInBlock < bloco.num_registos_usados) {
+                    ArticleDisk& art = bloco.artigos[positionInBlock];
+                    
+                    if (art.ocupado) {
+                        std::cout << "ID: " << art.id << std::endl;
+                        std::cout << "Titulo: " << art.titulo << std::endl;
+                        std::cout << "Ano: " << art.ano << std::endl;
+                        std::cout << "Autores: " << art.autores << std::endl;
+                        std::cout << "Atualizacao: " << art.atualizacao << std::endl;
+                        std::cout << "Citacoes: " << art.citacoes << std::endl;
+                        std::cout << "Snippet: " << art.snippet << std::endl;
+                    } else {
+                        std::cout << "ERRO: Registro nao ocupado (RID=" << actualRID << ").\n";
+                    }
                 } else {
-                    std::cout << "Registro nao ocupado.\n";
+                    std::cout << "ERRO: Posicao invalida no bloco (posicao=" << positionInBlock << ", registos_usados=" << bloco.num_registos_usados << ").\n";
                 }
             } else {
-                std::cout << "Posicao invalida no bloco.\n";
+                std::cout << "ERRO: Nao foi possivel ler bloco do arquivo (blockIndex=" << blockIndex << ").\n";
             }
+            dataFile.close();
         } else {
-            std::cout << "Erro ao ler bloco do arquivo.\n";
+            std::cout << "ERRO: Nao foi possivel abrir arquivo de dados.\n";
         }
-        dataFile.close();
-    } else {
-        std::cout << "Erro ao abrir arquivo de dados.\n";
     }
     
     return true;

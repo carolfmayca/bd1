@@ -572,26 +572,69 @@ long BPlusTree<T>::search(int k) {
     }
 }
 
-// NOVO: Busca todas as ocorrências de uma chave e retorna os offsets correspondentes
+#include <vector>
+
+// Busca todas as ocorrências de k:
+// - Desce com lowerBound até a folha mais à esquerda que pode conter k (O(log n))
+// - Coleta todas as ocorrências em folhas consecutivas (O(t))
 template <typename T>
 std::vector<long> BPlusTree<T>::searchAll(int k) {
     std::vector<long> results;
-    long leafOffset = search(k);
-    
-    if (leafOffset == 0) return results; // Chave não encontrada
-    
-    BPlusTreeNode leafNode;
-    fileManager->readNode<T>(leafOffset, leafNode);
-    
-    // Encontra todas as ocorrências da chave neste nó
-    for (int i = 0; i < leafNode.numKeys; i++) {
-        if (leafNode.keys[i] == k) {
-            results.push_back(leafNode.childrenOffsets[i]);
-        }
+    if (rootOffset == 0) return results;
+
+    // 1) Descer a árvore por lowerBound até a folha correta
+    long nodeOffset = rootOffset;
+    BPlusTreeNode node;
+    while (true) {
+        if (!fileManager->readNode<T>(nodeOffset, node)) return results;
+
+        if (node.isLeaf) break;
+
+        // i = primeiro índice i tal que keys[i] >= k
+        int i = lowerBound(node.keys, node.numKeys, k);
+        long child = node.childrenOffsets[i];
+        if (child == 0) return results; // estrutura inconsistente
+        nodeOffset = child;
     }
-    
+
+    // 2) Na folha, pegar o primeiro índice >= k
+    int idx = lowerBound(node.keys, node.numKeys, k);
+
+    // 3) Coletar enquanto == k; se acabar a folha, seguir via nextLeafOffset
+    BPlusTreeNode leaf = node;
+    long curLeafOffset = nodeOffset;
+
+    while (true) {
+        // Se o idx passou do fim desta folha, vamos para a próxima
+        if (idx >= leaf.numKeys) {
+            if (leaf.nextLeafOffset == 0) break;
+            if (!fileManager->readNode<T>(leaf.nextLeafOffset, leaf)) break;
+            curLeafOffset = leaf.nextLeafOffset;
+            idx = 0;
+        }
+
+        // Se a folha está vazia, termina
+        if (leaf.numKeys == 0) break;
+
+        // Atalho: se a primeira chave desta folha já é > k, não há mais ocorrências à direita
+        if (leaf.keys[0] > k) break;
+
+        // Varrer do idx até o fim desta folha coletando iguais a k
+        for (; idx < leaf.numKeys; ++idx) {
+            int keyHere = leaf.keys[idx];
+            if (keyHere == k) {
+                results.push_back(leaf.childrenOffsets[idx]);
+            } else if (keyHere > k) {
+                // Como chaves são ordenadas, acabou a faixa de k
+                return results;
+            }
+        }
+        // terminou a folha; próxima iteração carregará a nextLeaf
+    }
+
     return results;
 }
+
 
 template <typename T>
 long BPlusTree<T>::findParent(long subrootOffset, long childOffset) {
