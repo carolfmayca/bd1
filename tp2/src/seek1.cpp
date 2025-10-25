@@ -5,6 +5,7 @@
 #include <vector>
 #include <chrono>
 #include <cstdlib>
+#include <algorithm>
 
 struct ArticleDisk {
     bool ocupado;
@@ -64,6 +65,46 @@ void logDebug(const std::string& message) {
     if (CURRENT_LOG_LEVEL >= DEBUG) {
         std::cout << "[DEBUG] " << message << std::endl;
     }
+}
+
+// Função para corrigir encoding
+std::string fixEncoding(const std::string& str) {
+    std::string result;
+    for (size_t i = 0; i < str.length(); ++i) {
+        unsigned char c = str[i];
+        
+        // Corrige caracteres UTF-8 mal interpretados
+        if (c == 0xE2 && i + 2 < str.length() && 
+            static_cast<unsigned char>(str[i+1]) == 0x80 && 
+            static_cast<unsigned char>(str[i+2]) == 0x94) {
+            result += "—";
+            i += 2;
+        }
+        else if (c == 0xE2 && i + 2 < str.length() && 
+                 static_cast<unsigned char>(str[i+1]) == 0x80 && 
+                 static_cast<unsigned char>(str[i+2]) == 0x99) {
+            result += "'";
+            i += 2;
+        }
+        else if (c >= 32 && c <= 126) {
+            result += c;
+        }
+        else if (c == '\n' || c == '\t') {
+            result += c;
+        }
+        else {
+            result += ' ';
+        }
+    }
+    return result;
+}
+
+// Função para truncar snippet muito longo
+std::string truncateSnippet(const std::string& snippet, size_t maxLength = 500) {
+    if (snippet.length() <= maxLength) {
+        return snippet;
+    }
+    return snippet.substr(0, maxLength) + "... [truncado]";
 }
 
 // Estrutura para retornar estatísticas da busca
@@ -160,6 +201,11 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
                 std::cout << "Autores: " << art.autores << std::endl;
                 std::cout << "Atualização: " << art.atualizacao << std::endl;
                 std::cout << "Citações: " << art.citacoes << std::endl;
+                
+                std::string cleanedSnippet = fixEncoding(art.snippet);
+                std::string finalSnippet = truncateSnippet(cleanedSnippet);
+                std::cout << "Snippet: " << finalSnippet << std::endl;
+                
                 result.success = true;
             } else {
                 logWarn("Registro marcado como não ocupado no RID: " + std::to_string(actualRID));
