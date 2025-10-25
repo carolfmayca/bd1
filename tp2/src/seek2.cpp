@@ -1,4 +1,4 @@
-#include "BPlusTree.hpp"
+#include "../include/BPlusTree.hpp"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -87,7 +87,7 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
     long ridOffset = results[0];
     
     // Ler o RID real do arquivo de índice
-    std::ifstream idxFile("../data/db/sec_index.dat", std::ios::binary);
+    std::ifstream idxFile("bin/sec_index.idx", std::ios::binary);
     if (!idxFile.is_open()) {
         std::cout << "Erro ao abrir arquivo de indice.\n";
         return false;
@@ -157,7 +157,7 @@ int main(int argc, char* argv[]){
     }
     std::cout << "Buscando titulo: '" << titulo << "'\n";
 
-    BPlusTree<long> idx("../data/db/sec_index.dat");
+    BPlusTree<long> idx("bin/sec_index.idx");
     idx.resetStats();
     search_bplus_index(idx, titulo);
     std::cout << "Blocos da árvore lidos: " << idx.getPagesRead() << std::endl;

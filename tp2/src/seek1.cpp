@@ -1,4 +1,4 @@
-#include "BPlusTree.hpp"
+#include "../include/BPlusTree.hpp"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -41,7 +41,7 @@ bool search_primary_index(BPlusTree<long>& idx, int idBuscado) {
 
     // results[0] é o OFFSET no arquivo de índice — precisamos ler o RID armazenado ali
     long actualRID = -1;
-    std::ifstream idxFile("data/db/prim_index.dat", std::ios::binary);
+    std::ifstream idxFile("bin/prim_index.idx", std::ios::binary);
     if (!idxFile.is_open()) {
         std::cout << "Erro ao abrir arquivo de indice primario.\n";
         return false;
@@ -62,11 +62,6 @@ bool search_primary_index(BPlusTree<long>& idx, int idBuscado) {
         return false;
     }
     idxFile.close();
-
-    // --- DEBUG opcional ---
-    std::cout << "[DEBUG] Offset=" << results[0] 
-              << " RID=" << actualRID 
-              << " (bytes=" << sizeof(long) << ")\n";
 
     std::ifstream dataFile("data/db/artigos.dat", std::ios::binary);
     if (!dataFile.is_open()) {
@@ -122,7 +117,7 @@ int main(int argc, char* argv[]) {
     }
 
     int id = std::stoi(argv[1]);
-    BPlusTree<long> idx("data/db/prim_index.dat");
+BPlusTree<long> idx("bin/prim_index.idx");
     idx.resetStats();
     search_primary_index(idx, id);
     std::cout << "Blocos da árvore lidos: " << idx.getPagesRead() << std::endl;
