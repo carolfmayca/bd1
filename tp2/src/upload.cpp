@@ -169,6 +169,7 @@ static bool insereIdxPrim(){
     std::cout << "[INFO] Coletando registros..." << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
 
+    // ====== SCAN para coletar o RID e ID ======
     while (in.read(reinterpret_cast<char*>(&bloco), blocoSize)) {
         for (int i = 0; i < bloco.num_registos_usados; i++) {
             Artigo& art = bloco.artigos[i];
@@ -185,17 +186,33 @@ static bool insereIdxPrim(){
     std::sort(entries.begin(), entries.end(), [](auto& a, auto& b){ return a.key < b.key; });
 
     std::cout << "[INFO] Inserindo na B+Tree..." << std::endl;
-    for (auto& e : entries) {
-        idx.insert(e.key, &e.rid);
-        totalInseridos++;
+
+    auto insert_start = std::chrono::high_resolution_clock::now();
+    const size_t MEGA_BATCH_SIZE = 100000; // mesmo batch do secundário
+
+    // ====== INSERÇÃO EM LOTES COM FEEDBACK ======
+    for (size_t start_idx = 0; start_idx < entries.size(); start_idx += MEGA_BATCH_SIZE) {
+        size_t end_idx = std::min(start_idx + MEGA_BATCH_SIZE, entries.size());
+
+        for (size_t j = start_idx; j < end_idx; ++j) {
+            idx.insert(entries[j].key, &entries[j].rid);
+            totalInseridos++;
+        }
+
+        auto now = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - insert_start).count();
+
+        std::cout << end_idx << "/" << entries.size()
+                  << " (" << elapsed << "s) - "
+                  << (end_idx * 100 / entries.size()) << "%\n";
     }
 
     auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+    auto elapsedTotal = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
 
-    std::cout << "[SUCESSO] Índice primário criado!" << std::endl;
+    std::cout << "\n[SUCESSO] Índice primário criado!\n";
     std::cout << "Total de chaves inseridas: " << totalInseridos << std::endl;
-    std::cout << "Tempo total: " << elapsed << " segundos" << std::endl;
+    std::cout << "Tempo total: " << elapsedTotal << " segundos\n" << std::endl;
 
     return true;
 }
