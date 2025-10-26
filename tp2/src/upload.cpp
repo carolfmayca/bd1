@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <vector>
 
-const int TAMANHO_TABELA_HASH = 10000;
+const int TAMANHO_TABELA_HASH = 100000;
 
 // Estrutura para coleta de dados antes da inserção
 struct IndexEntry {

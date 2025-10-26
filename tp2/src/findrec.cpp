@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    const int TAMANHO_TABELA = 10000; // mesmo tamanho de tabela do upload
+    const int TAMANHO_TABELA = 100000; // mesmo tamanho de tabela do upload
     
     try {
         int id_para_buscar = std::stoi(argv[1]);
