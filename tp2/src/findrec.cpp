@@ -1,5 +1,5 @@
 #include "../include/hashing_file.h"
-#include "../include/config.h"  // ADICIONAR
+#include "../include/config.h" 
 #include <iostream>
 #include <string>
 #include <vector>
@@ -26,13 +26,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // MODIFICADO: Remover definição local e usar a do config.h
-    const int TAMANHO_TABELA = 2000000; // mesmo tamanho de tabela do upload
+    const int TAMANHO_TABELA = 10000; // mesmo tamanho de tabela do upload
     
     try {
         int id_para_buscar = std::stoi(argv[1]);
         
-        HashingFile arquivoHash(NOME_ARQUIVO_DADOS, TAMANHO_TABELA);  // MODIFICADO
+        HashingFile arquivoHash(ARTIGO_DAT, TAMANHO_TABELA);  
         
         int blocosLidos = 0;
         Artigo resultado = arquivoHash.buscarPorId(id_para_buscar, blocosLidos);

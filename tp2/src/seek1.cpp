@@ -1,5 +1,5 @@
 #include "../include/BPlusTree.hpp"
-#include "../include/config.h"  // ADICIONAR
+#include "../include/config.h" 
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -27,7 +27,7 @@ struct Bloco {
     long proximo_bloco_offset;
 };
 
-// Variáveis globais para logging
+// variáveis globais para logging
 enum LogLevel { ERROR, WARN, INFO, DEBUG };
 LogLevel CURRENT_LOG_LEVEL = INFO;
 
@@ -43,7 +43,7 @@ void setLogLevelFromEnv() {
     }
 }
 
-// Funções de logging
+// funções de logging
 void logError(const std::string& message) {
     if (CURRENT_LOG_LEVEL >= ERROR) {
         std::cerr << "[ERROR] " << message << std::endl;
@@ -68,13 +68,13 @@ void logDebug(const std::string& message) {
     }
 }
 
-// Função para corrigir encoding
+// função para corrigir encoding
 std::string fixEncoding(const std::string& str) {
     std::string result;
     for (size_t i = 0; i < str.length(); ++i) {
         unsigned char c = str[i];
         
-        // Corrige caracteres UTF-8 mal interpretados
+        // corrige caracteres UTF-8 mal interpretados
         if (c == 0xE2 && i + 2 < str.length() && 
             static_cast<unsigned char>(str[i+1]) == 0x80 && 
             static_cast<unsigned char>(str[i+2]) == 0x94) {
@@ -107,7 +107,7 @@ std::string truncateSnippet(const std::string& snippet, size_t maxLength = 500) 
     return snippet.substr(0, maxLength) + "... [truncado]";
 }
 
-// Estrutura para retornar estatísticas da busca
+// estrutura para retornar estatísticas da busca
 struct SearchResult {
     bool success;
     int treeBlocksRead;
@@ -121,11 +121,11 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     SearchResult result = {false, 0, 0, 0, 0};
     
     logInfo("Iniciando busca por ID: " + std::to_string(idBuscado));
-    logInfo("Caminho do arquivo de dados: " + NOME_ARQUIVO_DADOS);  // MODIFICADO
-    logInfo("Caminho do arquivo de índice: " + NOME_ARQUIVO_INDICE_PRIM);  // MODIFICADO
+    logInfo("Caminho do arquivo de dados: " + ARTIGO_DAT);  
+    logInfo("Caminho do arquivo de índice: " + PRIM_INDEX); 
 
     long leafOffset = idx.search(idBuscado);
-    result.treeBlocksRead = idx.getPagesRead();
+    result.treeBlocksRead = idx.getBlocksRead();
     
     if (leafOffset == 0) {
         logWarn("ID não encontrado no índice primário: " + std::to_string(idBuscado));
@@ -139,9 +139,9 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     }
 
     long actualRID = -1;
-    std::ifstream idxFile(NOME_ARQUIVO_INDICE_PRIM, std::ios::binary);  // MODIFICADO
+    std::ifstream idxFile(PRIM_INDEX, std::ios::binary);
     if (!idxFile.is_open()) {
-        logError("Erro ao abrir arquivo de índice primário: " + NOME_ARQUIVO_INDICE_PRIM);  // MODIFICADO
+        logError("Erro ao abrir arquivo de índice primário: " + PRIM_INDEX);
         return result;
     }
 
@@ -162,10 +162,10 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     idxFile.close();
     result.primaryIndexBlocksRead = 1;
 
-    // Buscar no arquivo de dados
-    std::ifstream dataFile(NOME_ARQUIVO_DADOS, std::ios::binary);  // MODIFICADO
+    // buscar no arquivo de dados
+    std::ifstream dataFile(ARTIGO_DAT, std::ios::binary);
     if (!dataFile.is_open()) {
-        logError("Erro ao abrir arquivo de dados: " + NOME_ARQUIVO_DADOS);  // MODIFICADO
+        logError("Erro ao abrir arquivo de dados: " + ARTIGO_DAT);
         return result;
     }
 
@@ -239,7 +239,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    BPlusTree<long> idx(NOME_ARQUIVO_INDICE_PRIM);  // MODIFICADO
+    BPlusTree<long> idx(PRIM_INDEX);
     idx.resetStats();
     
     logDebug("Índice primário carregado");

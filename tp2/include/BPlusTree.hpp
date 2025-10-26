@@ -24,7 +24,7 @@ private:
         long nextFreeOffset;
         int m;
     } header;
-    mutable std::size_t pagesRead = 0;
+    mutable std::size_t blocksRead = 0;
 
 public:
     FileManager(const std::string& filename, int treeM) : header({0, 4096, treeM}) {
@@ -86,7 +86,7 @@ public:
         
         file.seekg(offset, std::ios::beg);
         file.read(reinterpret_cast<char*>(&node), sizeof(typename BPlusTree<T>::BPlusTreeNode)); 
-        pagesRead++; // contador de blocos lidos
+        blocksRead++; // contador de blocos lidos
         return file.good();
     }
 
@@ -104,8 +104,8 @@ public:
         file.flush();
     }
     
-    void resetStats() { pagesRead = 0; }
-    std::size_t getPagesRead() const { return pagesRead; }
+    void resetStats() { blocksRead = 0; }
+    std::size_t getBlocksRead() const { return blocksRead; }
 
 };
 
@@ -137,7 +137,7 @@ public:
     
     // Métodos para estatísticas de I/O
     void resetStats() { fileManager->resetStats(); }
-    std::size_t getPagesRead() const { return fileManager->getPagesRead(); }
+    std::size_t getBlocksRead() const { return fileManager->getBlocksRead(); }
 
 private:
     long rootOffset;

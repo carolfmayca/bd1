@@ -1,5 +1,5 @@
 #include "BPlusTree.hpp"
-#include "config.h"  // ADICIONAR
+#include "config.h"  
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -9,11 +9,11 @@
 #include <vector>
 #include <locale>
 
-// Variáveis globais para logging
+// variáveis globais para logging
 enum LogLevel { ERROR, WARN, INFO, DEBUG };
 LogLevel CURRENT_LOG_LEVEL = INFO;
 
-// Função para determinar o nível de log a partir da variável de ambiente
+// função para determinar o nível de log a partir da variável de ambiente
 void setLogLevelFromEnv() {
     const char* log_env = std::getenv("LOG_LEVEL");
     if (log_env != nullptr) {
@@ -25,7 +25,7 @@ void setLogLevelFromEnv() {
     }
 }
 
-// Funções de logging
+// funções de logging
 void logError(const std::string& message) {
     if (CURRENT_LOG_LEVEL >= ERROR) {
         std::cerr << "[ERROR] " << message << std::endl;
@@ -70,7 +70,6 @@ struct Bloco {
     long proximo_bloco_offset;
 };
 
-// Funções de normalização (copiadas do indice_secundario)
 static inline std::string trim(const std::string& s) {
     std::size_t start = s.find_first_not_of(" \t\n\r");
     if (start == std::string::npos) return "";
@@ -85,7 +84,7 @@ static std::string normalize(const char* tituloRaw) {
     return s;
 }
 
-// Hash FNV-1a 32
+// hash FNV-1a 32
 static uint32_t fnv1a32(const std::string& s) {
     const uint32_t FNV_PRIME = 16777619u;
     uint32_t hash = 2166136261u;
@@ -96,13 +95,13 @@ static uint32_t fnv1a32(const std::string& s) {
     return hash;
 }
 
-// Função para corrigir encoding
+// função para corrigir encoding
 std::string fixEncoding(const std::string& str) {
     std::string result;
     for (size_t i = 0; i < str.length(); ++i) {
         unsigned char c = str[i];
         
-        // Corrige caracteres UTF-8 mal interpretados
+        // corrige caracteres UTF-8 mal interpretados
         if (c == 0xE2 && i + 2 < str.length() && 
             static_cast<unsigned char>(str[i+1]) == 0x80 && 
             static_cast<unsigned char>(str[i+2]) == 0x94) {
@@ -128,7 +127,7 @@ std::string fixEncoding(const std::string& str) {
     return result;
 }
 
-// Função para busca usando B+Tree
+// função para busca usando B+Tree
 bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado) {
     std::string norm = normalize(titulo_buscado.c_str());
     if (norm.empty()) {
@@ -155,7 +154,7 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
         long ridOffset = results[idxRes];
         std::cout << "\n--- Resultado " << (idxRes + 1) << " ---\n";
 
-        std::ifstream idxFile(NOME_ARQUIVO_INDICE_SEC, std::ios::binary);  // MODIFICADO
+        std::ifstream idxFile(SEC_INDEX, std::ios::binary);
         if (!idxFile.is_open()) {
             logError("Nao foi possivel abrir arquivo de indice.");
             continue;
@@ -172,7 +171,7 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
 
         std::cout << "RID=" << actualRID << std::endl;
 
-        std::ifstream dataFile(NOME_ARQUIVO_DADOS, std::ios::binary);  // MODIFICADO
+        std::ifstream dataFile(ARTIGO_DAT, std::ios::binary);
         if (dataFile.is_open()) {
             size_t articleIndex = static_cast<size_t>(actualRID);
             size_t blockIndex = articleIndex / REGISTROS_POR_BLOCO;
@@ -225,9 +224,9 @@ int main(int argc, char* argv[]){
     }
     logInfo("Buscando titulo: '" + titulo + "'");
 
-    BPlusTree<long> idx(NOME_ARQUIVO_INDICE_SEC);  // MODIFICADO
+    BPlusTree<long> idx(SEC_INDEX);  
     idx.resetStats();
     search_bplus_index(idx, titulo);
-    std::cout << "Blocos da árvore lidos: " << idx.getPagesRead() << std::endl;
+    std::cout << "Blocos da árvore lidos: " << idx.getBlocksRead() << std::endl;
     return 0;
 }

@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <vector>
 
-const int TAMANHO_TABELA_HASH = 2000000;
+const int TAMANHO_TABELA_HASH = 10000;
 
 // Estrutura para coleta de dados antes da inserção
 struct IndexEntry {
@@ -74,17 +74,17 @@ static uint32_t fnv1a32(const std::string& s) {
 }
 
 static bool insereHashing(){
-    std::ifstream csvFile(NOME_CSV_ENTRADA);
+    std::ifstream csvFile(ARTIGO_CSV);
     if (!csvFile.is_open()) {
-        std::cerr << "Erro: Nao foi possivel abrir o arquivo CSV '" << NOME_CSV_ENTRADA << "'" << std::endl;
+        std::cerr << "Erro: Nao foi possivel abrir o arquivo CSV '" << ARTIGO_CSV << "'" << std::endl;
         return false;
     }
 
-    std::cout << "\n--- Lendo arquivo " << NOME_CSV_ENTRADA << " e inserindo dados ---" << std::endl;
+    std::cout << "\n--- Lendo arquivo " << ARTIGO_CSV << " e inserindo dados ---" << std::endl;
     std::string linha;
     int registrosInseridos = 0;
     int numeroLinha = 0;
-    HashingFile arquivoHash(NOME_ARQUIVO_DADOS, TAMANHO_TABELA_HASH);
+    HashingFile arquivoHash(ARTIGO_DAT, TAMANHO_TABELA_HASH);
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -131,11 +131,11 @@ static bool insereHashing(){
 }
 
 static bool insereIdxPrim(){
-    BPlusTree<long> idx(NOME_ARQUIVO_INDICE_PRIM);
+    BPlusTree<long> idx(PRIM_INDEX);
 
-    std::ifstream in(NOME_ARQUIVO_DADOS, std::ios::binary);
+    std::ifstream in(ARTIGO_DAT, std::ios::binary);
     if (!in.is_open()) {
-        std::cerr << "[ERRO] Não foi possível abrir " << NOME_ARQUIVO_DADOS << "\n";
+        std::cerr << "[ERRO] Não foi possível abrir " << ARTIGO_DAT << "\n";
         return false;
     }
 
@@ -199,11 +199,11 @@ static bool insereIdxPrim(){
 
 
 static bool insereIdxSec(){
-    BPlusTree<long> idx(NOME_ARQUIVO_INDICE_SEC);
+    BPlusTree<long> idx(SEC_INDEX);
 
-    std::ifstream in(NOME_ARQUIVO_DADOS, std::ios::binary);
+    std::ifstream in(ARTIGO_DAT, std::ios::binary);
     if (!in.is_open()) {
-        std::cerr << "Erro: nao foi possivel abrir " << NOME_ARQUIVO_DADOS << " para leitura.\n";
+        std::cerr << "Erro: nao foi possivel abrir " << ARTIGO_DAT << " para leitura.\n";
         return false;
     }
 
@@ -289,14 +289,14 @@ static bool insereIdxSec(){
 
 int main(){
     // Limpa o ambiente
-    remove(NOME_ARQUIVO_DADOS.c_str());
-    remove(NOME_ARQUIVO_INDICE_HASH.c_str());
-    remove(NOME_ARQUIVO_INDICE_PRIM.c_str());
-    remove(NOME_ARQUIVO_INDICE_SEC.c_str());
+    remove(ARTIGO_DAT.c_str());
+    remove(TABELA_HASH.c_str());
+    remove(PRIM_INDEX.c_str());
+    remove(SEC_INDEX.c_str());
 
     std::cout << "DATA_DIR: " << DATA_DIR << std::endl;
     std::cout << "BIN_DIR: " << BIN_DIR << std::endl;
-    std::cout << "CSV: " << NOME_CSV_ENTRADA << std::endl;
+    std::cout << "CSV: " << ARTIGO_CSV << std::endl;
 
     std::cout << "--- Inicio de inserção em hash ---\n";
     if (!insereHashing()) {
