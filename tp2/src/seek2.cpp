@@ -84,7 +84,7 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
         
         std::cout << "\n--- Resultado " << (idx + 1) << " ---\n";
         
-        std::ifstream idxFile("/app/bin/sec_index.idx", std::ios::binary);
+        std::ifstream idxFile("/bin/sec_index.idx", std::ios::binary);
         if (!idxFile.is_open()) {
             std::cout << "ERRO: Nao foi possivel abrir arquivo de indice.\n";
             continue;
@@ -154,7 +154,7 @@ int main(int argc, char* argv[]){
     }
     std::cout << "Buscando titulo: '" << titulo << "'\n";
 
-    BPlusTree<long> idx("/app/bin/sec_index.idx");
+    BPlusTree<long> idx("/bin/sec_index.idx");
     idx.resetStats();
     search_bplus_index(idx, titulo);
     std::cout << "Blocos da árvore lidos: " << idx.getPagesRead() << std::endl;

@@ -12,9 +12,9 @@
 
 // Constantes globais
 const std::string NOME_ARQUIVO_DADOS = "/data/artigos.dat";
-const std::string NOME_ARQUIVO_INDICE_HASH = "/app/bin/tabela_hash.idx";
-const std::string NOME_ARQUIVO_INDICE_PRIM = "/app/bin/prim_index.idx";
-const std::string NOME_ARQUIVO_INDICE_SEC = "/app/bin/sec_index.idx";
+const std::string NOME_ARQUIVO_INDICE_HASH = "/bin/tabela_hash.idx";
+const std::string NOME_ARQUIVO_INDICE_PRIM = "/bin/prim_index.idx";
+const std::string NOME_ARQUIVO_INDICE_SEC = "/bin/sec_index.idx";
 const std::string NOME_CSV_ENTRADA = "/data/artigo.csv";
 const int TAMANHO_TABELA_HASH = 2000000;
 
