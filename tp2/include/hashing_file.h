@@ -3,7 +3,7 @@
 #include <string>
 #include <fstream>
 
-// Estrutura que representa um registo. Já não precisa do ponteiro de encadeamento.
+// representa um registo
 struct Artigo {
     bool ocupado;
     int id;
@@ -15,15 +15,14 @@ struct Artigo {
     char snippet[1025];
 };
 
-// Define quantos artigos cabem em um único bloco.
+// artigos que cabem em um único bloco
 const int REGISTOS_POR_BLOCO = 2;
 
-// Estrutura que representa um bloco no disco.
-// Este é o contentor que armazena múltiplos artigos.
+// representa um bloco no disco
 struct Bloco {
     Artigo artigos[REGISTOS_POR_BLOCO];
-    int num_registos_usados;   // Contador de quantos artigos estão neste bloco.
-    long proximo_bloco_offset; // Ponteiro para o próximo bloco na cadeia de colisão.
+    int num_registos_usados;
+    long proximo_bloco_offset;
 };
 
 

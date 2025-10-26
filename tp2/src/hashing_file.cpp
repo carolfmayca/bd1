@@ -56,7 +56,7 @@ long HashingFile::inserirArtigo(Artigo& novoArtigo) {
     tabela.read(reinterpret_cast<char*>(&offset_inicio_cadeia), sizeof(long));
 
     if (offset_inicio_cadeia == -1) {
-        // A cadeia está vazia. Criamos um novo bloco.
+        // cadeia vazia, criamos um novo bloco
         Bloco novo_bloco = {};
         novo_bloco.artigos[0] = novoArtigo;
         novo_bloco.num_registos_usados = 1;
@@ -66,11 +66,11 @@ long HashingFile::inserirArtigo(Artigo& novoArtigo) {
         long nova_posicao_bloco = arquivo.tellg();
         arquivo.write(reinterpret_cast<const char*>(&novo_bloco), sizeof(Bloco));
 
-        // Atualiza a tabela de hash para apontar para este novo bloco.
+        // atualiza tabela
         tabela.seekp(endereco * sizeof(long));
         tabela.write(reinterpret_cast<const char*>(&nova_posicao_bloco), sizeof(long));
     } else {
-        // A cadeia já existe. Procuramos por um espaço livre.
+        // cadeia já existe, procura por um espaço livre
         long offset_bloco_atual = offset_inicio_cadeia;
         Bloco bloco_temp;
         while (true) {
@@ -78,14 +78,13 @@ long HashingFile::inserirArtigo(Artigo& novoArtigo) {
             arquivo.read(reinterpret_cast<char*>(&bloco_temp), sizeof(Bloco));
 
             if (bloco_temp.num_registos_usados < REGISTOS_POR_BLOCO) {
-                // Encontrámos espaço neste bloco!
                 bloco_temp.artigos[bloco_temp.num_registos_usados] = novoArtigo;
                 bloco_temp.num_registos_usados++;
                 arquivo.seekp(offset_bloco_atual);
                 arquivo.write(reinterpret_cast<const char*>(&bloco_temp), sizeof(Bloco));
                 break;
             } else if (bloco_temp.proximo_bloco_offset == -1) {
-                // Bloco atual está cheio e é o último da cadeia. Criamos um novo bloco de overflow.
+                // bloco está cheio e é o último da cadeia, cria um novo bloco de overflow
                 Bloco novo_bloco_overflow = {};
                 novo_bloco_overflow.artigos[0] = novoArtigo;
                 novo_bloco_overflow.num_registos_usados = 1;
@@ -95,19 +94,19 @@ long HashingFile::inserirArtigo(Artigo& novoArtigo) {
                 long nova_posicao_bloco_overflow = arquivo.tellg();
                 arquivo.write(reinterpret_cast<const char*>(&novo_bloco_overflow), sizeof(Bloco));
 
-                // Atualizamos o bloco anterior para apontar para este novo.
+                // atualizamos o bloco anterior
                 bloco_temp.proximo_bloco_offset = nova_posicao_bloco_overflow;
                 arquivo.seekp(offset_bloco_atual);
                 arquivo.write(reinterpret_cast<const char*>(&bloco_temp), sizeof(Bloco));
                 break;
             } else {
-                // Bloco atual está cheio, vamos para o próximo.
+                // bloco cheio
                 offset_bloco_atual = bloco_temp.proximo_bloco_offset;
             }
         }
     }
     tabela.close();
-    return 0; // O retorno agora é menos significativo, poderíamos retornar o offset do bloco.
+    return 0;
 }
 
 Artigo HashingFile::buscarPorId(int id, int& blocosLidos) {
@@ -132,13 +131,13 @@ Artigo HashingFile::buscarPorId(int id, int& blocosLidos) {
 
         for (int i = 0; i < bloco_temp.num_registos_usados; ++i) {
             if (bloco_temp.artigos[i].id == id) {
-                return bloco_temp.artigos[i]; // Encontrado!
+                return bloco_temp.artigos[i];
             }
         }
         offset_bloco_atual = bloco_temp.proximo_bloco_offset;
     }
 
-    return {}; // Não encontrado
+    return {};
 }
 
 long HashingFile::getTotalBlocos() {

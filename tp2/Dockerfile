@@ -1,4 +1,4 @@
-# 1. Imagem Base (conforme especificado no PDF)
+# 1. Imagem Base
 # Usamos o Debian "bookworm-slim" que é leve
 FROM debian:bookworm-slim
 
@@ -12,19 +12,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # 4. Copia TODOS os arquivos do seu projeto para dentro do contêiner
-# (O "." significa "tudo" da pasta atual)
 COPY . /app
 
 # 5. Compila o projeto
-# Este é o comando-chave: ele executa o alvo "build" do nosso Makefile
 RUN make build
 
 # 6. Define o diretório /data como um volume
-# É aqui que o CSV de entrada será lido e os arquivos .dat/.idx serão gravados
 VOLUME ["/data"]
 
 # 7. Define variáveis de ambiente (conforme o PDF)
-# O seu upload_main.cpp modificado vai usar estas variáveis
 ENV DATA_DIR=/data/ \
     CSV_PATH=/data/artigo.csv \
     LOG_LEVEL=info

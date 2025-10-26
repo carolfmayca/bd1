@@ -30,7 +30,7 @@ struct Bloco {
 enum LogLevel { ERROR, WARN, INFO, DEBUG };
 LogLevel CURRENT_LOG_LEVEL = INFO;
 
-// Função para determinar o nível de log a partir da variável de ambiente
+// determinar o nível de log a partir da variável de ambiente
 void setLogLevelFromEnv() {
     const char* log_env = std::getenv("LOG_LEVEL");
     if (log_env != nullptr) {
@@ -99,7 +99,6 @@ std::string fixEncoding(const std::string& str) {
     return result;
 }
 
-// Função para truncar snippet muito longo
 std::string truncateSnippet(const std::string& snippet, size_t maxLength = 500) {
     if (snippet.length() <= maxLength) {
         return snippet;
@@ -116,7 +115,6 @@ struct SearchResult {
     long long durationMs;
 };
 
-// Função para buscar artigo por ID usando o índice primário
 SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     auto startTime = std::chrono::high_resolution_clock::now();
     SearchResult result = {false, 0, 0, 0, 0};
@@ -139,7 +137,6 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
         return result;
     }
 
-    // Ler o RID do arquivo de índice
     long actualRID = -1;
     std::ifstream idxFile("/bin/prim_index.idx", std::ios::binary);
     if (!idxFile.is_open()) {
@@ -248,7 +245,6 @@ int main(int argc, char* argv[]) {
     
     SearchResult result = search_primary_index(idx, id);
     
-    // Relatório final
     std::cout << "\n=== ESTATÍSTICAS DA BUSCA ===" << std::endl;
     std::cout << "Blocos da árvore lidos: " << result.treeBlocksRead << std::endl;
     std::cout << "Blocos do índice primário lidos: " << result.primaryIndexBlocksRead << std::endl;

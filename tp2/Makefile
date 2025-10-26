@@ -1,7 +1,6 @@
 # --- Compilador e Flags ---
 CXX = g++
 # -I./include avisa o compilador para procurar os .h na pasta 'include'
-# CORRIGIDO: Usar C++17 como exigido pelo código
 CXXFLAGS = -std=c++17 -Wall -Wextra -I./include -O2
 
 # --- Diretórios ---
@@ -11,7 +10,6 @@ DATA_DIR = data
 
 # --- Arquivos Fonte ---
 HASH_SRC = $(SRC_DIR)/hashing_file.cpp
-# Assumindo que BPlusTree.hpp é header-only
 
 # --- Alvos (Executáveis) ---
 UPLOAD_EXEC = $(BIN_DIR)/upload
@@ -24,7 +22,7 @@ EXECUTABLES = $(UPLOAD_EXEC) $(FINDREC_EXEC) $(SEEK1_EXEC) $(SEEK2_EXEC)
 # O alvo .PHONY diz ao Make que 'build' e 'clean' não são ficheiros reais
 .PHONY: build clean all
 
-# --- Alvo Principal (o que o Dockerfile chama) ---
+# --- Alvo Principal ---
 # Garante que os diretórios existem e compila tudo
 build: $(BIN_DIR) $(DATA_DIR) $(EXECUTABLES)
 
@@ -46,17 +44,14 @@ $(UPLOAD_EXEC): $(SRC_DIR)/upload.cpp $(HASH_SRC) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Regra para compilar o 'findrec'
-# O findrec depende apenas do main dele e do hash
 $(FINDREC_EXEC): $(SRC_DIR)/findrec.cpp $(HASH_SRC) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Regra para compilar o 'seek1' (B-Tree Primária)
-# Assumindo que ele só precisa do seu próprio .cpp (e do BPlusTree.hpp)
 $(SEEK1_EXEC): $(SRC_DIR)/seek1.cpp | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Regra para compilar o 'seek2' (B-Tree Secundária)
-# Assumindo que ele só precisa do seu próprio .cpp (e do BPlusTree.hpp)
 $(SEEK2_EXEC): $(SRC_DIR)/seek2.cpp | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 

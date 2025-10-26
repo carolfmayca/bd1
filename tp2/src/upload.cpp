@@ -65,7 +65,6 @@ static inline std::string trim(const std::string& s) {
 static std::string normalize(const char* tituloRaw) {
     std::string s(tituloRaw ? tituloRaw : "");
     s = trim(s);
-    // Removido tolower_copy(s) - agora case-sensitive
     return s;
 }
 
@@ -94,10 +93,8 @@ static bool insereHashing(){
     int numeroLinha = 0;
     HashingFile arquivoHash(NOME_ARQUIVO_DADOS, TAMANHO_TABELA_HASH);
 
-    // --- INÍCIO DA MODIFICAÇÃO (1/2) ---
-    // Adiciona o relógio para o log
+
     auto start = std::chrono::high_resolution_clock::now();
-    // --- FIM DA MODIFICAÇÃO (1/2) ---
 
     while (std::getline(csvFile, linha)) {
         numeroLinha++;
@@ -122,14 +119,11 @@ static bool insereHashing(){
                 arquivoHash.inserirArtigo(art);
                 registrosInseridos++;
 
-                // --- INÍCIO DA MODIFICAÇÃO (2/2) ---
-                // Adiciona log a cada 50.000 registros
                 if (registrosInseridos > 0 && registrosInseridos % 50000 == 0) {
                     auto now = std::chrono::high_resolution_clock::now();
                     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
                     std::cout << "[LOG] " << registrosInseridos << " registros inseridos no hashing... (" << elapsed << "s)" << std::endl;
                 }
-                // --- FIM DA MODIFICAÇÃO (2/2) ---
 
             } catch (const std::exception& e) {
                 std::cerr << "--> ERRO DE CONVERSAO na linha " << numeroLinha << ". Verifique os campos numericos. Erro: " << e.what() << std::endl;
@@ -165,7 +159,7 @@ static bool insereIdxPrim(){
     std::cout << "[INFO] Coletando registros..." << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
 
-    // ====== SCAN para coletar o RID e ID ======
+    // coletar o RID e ID
     while (in.read(reinterpret_cast<char*>(&bloco), blocoSize)) {
         for (int i = 0; i < bloco.num_registos_usados; i++) {
             Artigo& art = bloco.artigos[i];
@@ -184,9 +178,8 @@ static bool insereIdxPrim(){
     std::cout << "[INFO] Inserindo na B+Tree..." << std::endl;
 
     auto insert_start = std::chrono::high_resolution_clock::now();
-    const size_t MEGA_BATCH_SIZE = 100000; // mesmo batch do secundário
+    const size_t MEGA_BATCH_SIZE = 100000;
 
-    // ====== INSERÇÃO EM LOTES COM FEEDBACK ======
     for (size_t start_idx = 0; start_idx < entries.size(); start_idx += MEGA_BATCH_SIZE) {
         size_t end_idx = std::min(start_idx + MEGA_BATCH_SIZE, entries.size());
 
@@ -198,10 +191,9 @@ static bool insereIdxPrim(){
         auto now = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - insert_start).count();
 
-        // CORREÇÃO: Adicionar std::endl para flush imediato
         std::cout << end_idx << "/" << entries.size()
                   << " (" << elapsed << "s) - "
-                  << (end_idx * 100 / entries.size()) << "%" << std::endl; // Mudei \n para std::endl
+                  << (end_idx * 100 / entries.size()) << "%" << std::endl;
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -281,7 +273,7 @@ static bool insereIdxSec(){
 
     auto insert_start = std::chrono::high_resolution_clock::now();
     
-    const size_t MEGA_BATCH_SIZE = 100000; // Lotes de 100k para máxima eficiência
+    const size_t MEGA_BATCH_SIZE = 100000;
     
     for (size_t start_idx = 0; start_idx < entries.size(); start_idx += MEGA_BATCH_SIZE) {
         size_t end_idx = std::min(start_idx + MEGA_BATCH_SIZE, entries.size());
@@ -304,11 +296,10 @@ static bool insereIdxSec(){
     return true;
 }
 
-// Função para copiar arquivos de índice para o volume persistente
+// copiar arquivos de índice para o volume persistente
 bool copiarIndicesParaVolume() {
     std::cout << "\n=== INICIANDO COPIA DE INDICES ===\n";
     
-    // Lista de arquivos para copiar
     std::vector<std::pair<std::string, std::string>> arquivos = {
         {"/app/bin/tabela_hash.idx", "/bin/tabela_hash.idx"},
         {"/app/bin/prim_index.idx", "/bin/prim_index.idx"},
@@ -330,7 +321,6 @@ bool copiarIndicesParaVolume() {
             continue;
         }
         
-        // Verifica tamanho do arquivo origem
         src.seekg(0, std::ios::end);
         std::size_t tamanho = src.tellg();
         src.seekg(0, std::ios::beg);
@@ -344,7 +334,6 @@ bool copiarIndicesParaVolume() {
             continue;
         }
         
-        // Copia o arquivo em chunks para arquivos grandes
         const size_t BUFFER_SIZE = 1024 * 1024; // 1MB buffer
         std::vector<char> buffer(BUFFER_SIZE);
         size_t totalCopiado = 0;
@@ -354,7 +343,7 @@ bool copiarIndicesParaVolume() {
             std::streamsize bytesLidos = src.gcount();
             if (bytesLidos > 0) {
                 dst.write(buffer.data(), bytesLidos);
-                dst.flush(); // Force write to disk
+                dst.flush();
                 totalCopiado += bytesLidos;
                 
                 // Log progress for large files
@@ -367,7 +356,6 @@ bool copiarIndicesParaVolume() {
         src.close();
         dst.close();
         
-        // Verifica se a cópia foi bem-sucedida
         std::ifstream verificacao(destino, std::ios::binary);
         if (verificacao.is_open()) {
             verificacao.seekg(0, std::ios::end);
@@ -416,7 +404,6 @@ int main(){
     }
     std::cout << "--- Inserção do indice secundario realizada com sucesso ---\n";
     
-    // Copia arquivos de índice para o volume persistente
     if (!copiarIndicesParaVolume()) {
         std::cerr << "AVISO: Erro ao copiar indices para volume persistente.\n";
     }
