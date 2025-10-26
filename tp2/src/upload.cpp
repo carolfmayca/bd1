@@ -198,9 +198,10 @@ static bool insereIdxPrim(){
         auto now = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - insert_start).count();
 
+        // CORREÇÃO: Adicionar std::endl para flush imediato
         std::cout << end_idx << "/" << entries.size()
                   << " (" << elapsed << "s) - "
-                  << (end_idx * 100 / entries.size()) << "%\n";
+                  << (end_idx * 100 / entries.size()) << "%" << std::endl; // Mudei \n para std::endl
     }
 
     auto end = std::chrono::high_resolution_clock::now();
