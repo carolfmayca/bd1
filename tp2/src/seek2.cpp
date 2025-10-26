@@ -8,6 +8,47 @@
 #include <vector>
 #include <locale>
 
+// Variáveis globais para logging
+enum LogLevel { ERROR, WARN, INFO, DEBUG };
+LogLevel CURRENT_LOG_LEVEL = INFO;
+
+// Função para determinar o nível de log a partir da variável de ambiente
+void setLogLevelFromEnv() {
+    const char* log_env = std::getenv("LOG_LEVEL");
+    if (log_env != nullptr) {
+        std::string level(log_env);
+        if (level == "error") CURRENT_LOG_LEVEL = ERROR;
+        else if (level == "warn") CURRENT_LOG_LEVEL = WARN;
+        else if (level == "info") CURRENT_LOG_LEVEL = INFO;
+        else if (level == "debug") CURRENT_LOG_LEVEL = DEBUG;
+    }
+}
+
+// Funções de logging
+void logError(const std::string& message) {
+    if (CURRENT_LOG_LEVEL >= ERROR) {
+        std::cerr << "[ERROR] " << message << std::endl;
+    }
+}
+
+void logWarn(const std::string& message) {
+    if (CURRENT_LOG_LEVEL >= WARN) {
+        std::cout << "[WARN] " << message << std::endl;
+    }
+}
+
+void logInfo(const std::string& message) {
+    if (CURRENT_LOG_LEVEL >= INFO) {
+        std::cout << "[INFO] " << message << std::endl;
+    }
+}
+
+void logDebug(const std::string& message) {
+    if (CURRENT_LOG_LEVEL >= DEBUG) {
+        std::cout << "[DEBUG] " << message << std::endl;
+    }
+}
+
 
 struct ArticleDisk {
     bool ocupado;
@@ -90,61 +131,58 @@ std::string fixEncoding(const std::string& str) {
 bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado) {
     std::string norm = normalize(titulo_buscado.c_str());
     if (norm.empty()) {
-        std::cout << "Titulo vazio.\n";
+        logWarn("Titulo vazio.");
         return false;
     }
     int key = static_cast<int>(fnv1a32(norm));
 
     long leafOffset = idx.search(key);
-    
     if (leafOffset == 0) {
-        std::cout << "Titulo nao encontrado no indice secundario.\n";
+        logWarn("Titulo nao encontrado no indice secundario.");
         return false;
     }
 
     std::vector<long> results = idx.searchAll(key);
-    
     if (results.empty()) {
-        std::cout << "Titulo nao encontrado no indice secundario.\n";
+        logWarn("Titulo nao encontrado no indice secundario.");
         return false;
     }
-    
-    std::cout << "Encontradas " << results.size() << " ocorrencias!\n";
-    
-    for (size_t idx = 0; idx < results.size(); idx++) {
-        long ridOffset = results[idx];
-        
-        std::cout << "\n--- Resultado " << (idx + 1) << " ---\n";
-        
+
+    logInfo("Encontradas " + std::to_string(results.size()) + " ocorrencias!");
+
+    for (size_t idxRes = 0; idxRes < results.size(); idxRes++) {
+        long ridOffset = results[idxRes];
+        std::cout << "\n--- Resultado " << (idxRes + 1) << " ---\n";
+
         std::ifstream idxFile("/bin/sec_index.idx", std::ios::binary);
         if (!idxFile.is_open()) {
-            std::cout << "ERRO: Nao foi possivel abrir arquivo de indice.\n";
+            logError("Nao foi possivel abrir arquivo de indice.");
             continue;
         }
-        
+
         long actualRID;
         idxFile.seekg(ridOffset);
         if (!idxFile.read(reinterpret_cast<char*>(&actualRID), sizeof(long))) {
-            std::cout << "ERRO: Nao foi possivel ler RID do indice (offset=" << ridOffset << ").\n";
+            logError("Nao foi possivel ler RID do indice (offset=" + std::to_string(ridOffset) + ").");
             idxFile.close();
             continue;
         }
         idxFile.close();
-        
+
         std::cout << "RID=" << actualRID << std::endl;
-        
+
         std::ifstream dataFile("/data/artigos.dat", std::ios::binary);
         if (dataFile.is_open()) {
             size_t articleIndex = static_cast<size_t>(actualRID);
             size_t blockIndex = articleIndex / REGISTOS_POR_BLOCO;
             size_t positionInBlock = articleIndex % REGISTOS_POR_BLOCO;
-            
+
             Bloco bloco{};
             dataFile.seekg(blockIndex * sizeof(Bloco));
             if (dataFile.read(reinterpret_cast<char*>(&bloco), sizeof(Bloco))) {
                 if (positionInBlock < REGISTOS_POR_BLOCO && positionInBlock < bloco.num_registos_usados) {
                     ArticleDisk& art = bloco.artigos[positionInBlock];
-                    
+
                     if (art.ocupado) {
                         std::cout << "ID: " << art.id << std::endl;
                         std::cout << "Titulo: " << fixEncoding(art.titulo) << std::endl;
@@ -154,37 +192,37 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
                         std::cout << "Citacoes: " << art.citacoes << std::endl;
                         std::cout << "Snippet: " << fixEncoding(art.snippet) << std::endl;
                     } else {
-                        std::cout << "ERRO: Registro nao ocupado (RID=" << actualRID << ").\n";
+                        logWarn("Registro nao ocupado (RID=" + std::to_string(actualRID) + ").");
                     }
                 } else {
-                    std::cout << "ERRO: Posicao invalida no bloco (posicao=" << positionInBlock << ", registos_usados=" << bloco.num_registos_usados << ").\n";
+                    logError("Posicao invalida no bloco (posicao=" + std::to_string(positionInBlock) + ", registos_usados=" + std::to_string(bloco.num_registos_usados) + ").");
                 }
             } else {
-                std::cout << "ERRO: Nao foi possivel ler bloco do arquivo (blockIndex=" << blockIndex << ").\n";
+                logError("Nao foi possivel ler bloco do arquivo (blockIndex=" + std::to_string(blockIndex) + ").");
             }
             dataFile.close();
         } else {
-            std::cout << "ERRO: Nao foi possivel abrir arquivo de dados.\n";
+            logError("Nao foi possivel abrir arquivo de dados.");
         }
     }
-    
+
     return true;
 }
 
 int main(int argc, char* argv[]){
+    setLogLevelFromEnv();
     if (argc < 2) {
-        std::cerr << "Uso: " << argv[0] << " <Titulo>\n";
+        logError("Uso: " + std::string(argv[0]) + " <Titulo>");
         return 1;
     }
     std::setlocale(LC_ALL, "en_US.UTF-8");
-
 
     std::string titulo;
     for (int i = 1; i < argc; ++i) {
         if (i > 1) titulo.push_back(' ');
         titulo.append(argv[i]);
     }
-    std::cout << "Buscando titulo: '" << titulo << "'\n";
+    logInfo("Buscando titulo: '" + titulo + "'");
 
     BPlusTree<long> idx("/bin/sec_index.idx");
     idx.resetStats();
