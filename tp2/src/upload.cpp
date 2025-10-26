@@ -1,5 +1,6 @@
 #include "hashing_file.h"
 #include "BPlusTree.hpp"
+#include "config.h"  // NOVO: inclui configurações
 #include <sstream>
 #include <cstring>
 #include <cctype>
@@ -11,12 +12,6 @@
 #include <algorithm>
 #include <vector>
 
-// Constantes globais
-const std::string NOME_ARQUIVO_DADOS = "/data/artigos.dat";
-const std::string NOME_ARQUIVO_INDICE_HASH = "/app/bin/tabela_hash.idx";
-const std::string NOME_ARQUIVO_INDICE_PRIM = "/app/bin/prim_index.idx";
-const std::string NOME_ARQUIVO_INDICE_SEC = "/app/bin/sec_index.idx";
-const std::string NOME_CSV_ENTRADA = "/data/artigo.csv";
 const int TAMANHO_TABELA_HASH = 2000000;
 
 // Estrutura para coleta de dados antes da inserção
@@ -49,7 +44,7 @@ std::vector<std::string> parseCSVLine(const std::string& linha) {
             campo_atual += c;
         }
     }
-    campos.push_back(trimQuotes(campo_atual)); // Adiciona o último campo
+    campos.push_back(trimQuotes(campo_atual));
     return campos;
 }
 
@@ -60,7 +55,6 @@ static inline std::string trim(const std::string& s) {
     std::size_t end = s.find_last_not_of(" \t\n\r");
     return s.substr(start, end - start + 1);
 }
-
 
 static std::string normalize(const char* tituloRaw) {
     std::string s(tituloRaw ? tituloRaw : "");
@@ -79,12 +73,11 @@ static uint32_t fnv1a32(const std::string& s) {
     return hash;
 }
 
-
 static bool insereHashing(){
     std::ifstream csvFile(NOME_CSV_ENTRADA);
     if (!csvFile.is_open()) {
         std::cerr << "Erro: Nao foi possivel abrir o arquivo CSV '" << NOME_CSV_ENTRADA << "'" << std::endl;
-        return false; // Retorna falso em caso de erro
+        return false;
     }
 
     std::cout << "\n--- Lendo arquivo " << NOME_CSV_ENTRADA << " e inserindo dados ---" << std::endl;
@@ -92,7 +85,6 @@ static bool insereHashing(){
     int registrosInseridos = 0;
     int numeroLinha = 0;
     HashingFile arquivoHash(NOME_ARQUIVO_DADOS, TAMANHO_TABELA_HASH);
-
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -137,7 +129,6 @@ static bool insereHashing(){
     csvFile.close();
     return true;
 }
-
 
 static bool insereIdxPrim(){
     BPlusTree<long> idx(NOME_ARQUIVO_INDICE_PRIM);
@@ -385,6 +376,10 @@ int main(){
     remove(NOME_ARQUIVO_INDICE_PRIM.c_str());
     remove(NOME_ARQUIVO_INDICE_SEC.c_str());
 
+    std::cout << "DATA_DIR: " << DATA_DIR << std::endl;
+    std::cout << "BIN_DIR: " << BIN_DIR << std::endl;
+    std::cout << "CSV: " << NOME_CSV_ENTRADA << std::endl;
+
     std::cout << "--- Inicio de inserção em hash ---\n";
     if (!insereHashing()) {
         std::cerr << "Erro na insercao via hashing. Abortando.\n";
@@ -403,10 +398,6 @@ int main(){
         return 1;
     }
     std::cout << "--- Inserção do indice secundario realizada com sucesso ---\n";
-    
-    if (!copiarIndicesParaVolume()) {
-        std::cerr << "AVISO: Erro ao copiar indices para volume persistente.\n";
-    }
 
     return 0;
 }

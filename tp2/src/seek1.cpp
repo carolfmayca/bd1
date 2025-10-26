@@ -1,4 +1,5 @@
 #include "../include/BPlusTree.hpp"
+#include "../include/config.h"  // ADICIONAR
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -120,8 +121,8 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     SearchResult result = {false, 0, 0, 0, 0};
     
     logInfo("Iniciando busca por ID: " + std::to_string(idBuscado));
-    logInfo("Caminho do arquivo de dados: data/artigos.dat");
-    logInfo("Caminho do arquivo de índice: bin/prim_index.idx");
+    logInfo("Caminho do arquivo de dados: " + NOME_ARQUIVO_DADOS);  // MODIFICADO
+    logInfo("Caminho do arquivo de índice: " + NOME_ARQUIVO_INDICE_PRIM);  // MODIFICADO
 
     long leafOffset = idx.search(idBuscado);
     result.treeBlocksRead = idx.getPagesRead();
@@ -138,9 +139,9 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     }
 
     long actualRID = -1;
-    std::ifstream idxFile("/bin/prim_index.idx", std::ios::binary);
+    std::ifstream idxFile(NOME_ARQUIVO_INDICE_PRIM, std::ios::binary);  // MODIFICADO
     if (!idxFile.is_open()) {
-        logError("Erro ao abrir arquivo de índice primário: bin/prim_index.idx");
+        logError("Erro ao abrir arquivo de índice primário: " + NOME_ARQUIVO_INDICE_PRIM);  // MODIFICADO
         return result;
     }
 
@@ -162,9 +163,9 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     result.primaryIndexBlocksRead = 1;
 
     // Buscar no arquivo de dados
-    std::ifstream dataFile("/data/artigos.dat", std::ios::binary);
+    std::ifstream dataFile(NOME_ARQUIVO_DADOS, std::ios::binary);  // MODIFICADO
     if (!dataFile.is_open()) {
-        logError("Erro ao abrir arquivo de dados: data/artigos.dat");
+        logError("Erro ao abrir arquivo de dados: " + NOME_ARQUIVO_DADOS);  // MODIFICADO
         return result;
     }
 
@@ -238,7 +239,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    BPlusTree<long> idx("/bin/prim_index.idx");
+    BPlusTree<long> idx(NOME_ARQUIVO_INDICE_PRIM);  // MODIFICADO
     idx.resetStats();
     
     logDebug("Índice primário carregado");

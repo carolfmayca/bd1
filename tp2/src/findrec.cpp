@@ -1,4 +1,5 @@
 #include "../include/hashing_file.h"
+#include "../include/config.h"  // ADICIONAR
 #include <iostream>
 #include <string>
 #include <vector>
@@ -25,14 +26,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Nomes dos arquivos e parâmetros
-    const std::string NOME_ARQUIVO_DADOS = "/data/artigos.dat";
+    // MODIFICADO: Remover definição local e usar a do config.h
     const int TAMANHO_TABELA = 2000000; // mesmo tamanho de tabela do upload
     
     try {
         int id_para_buscar = std::stoi(argv[1]);
         
-        HashingFile arquivoHash(NOME_ARQUIVO_DADOS, TAMANHO_TABELA);
+        HashingFile arquivoHash(NOME_ARQUIVO_DADOS, TAMANHO_TABELA);  // MODIFICADO
         
         int blocosLidos = 0;
         Artigo resultado = arquivoHash.buscarPorId(id_para_buscar, blocosLidos);
@@ -51,4 +51,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-

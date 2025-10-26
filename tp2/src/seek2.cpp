@@ -1,4 +1,5 @@
 #include "BPlusTree.hpp"
+#include "config.h"  // ADICIONAR
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -154,7 +155,7 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
         long ridOffset = results[idxRes];
         std::cout << "\n--- Resultado " << (idxRes + 1) << " ---\n";
 
-        std::ifstream idxFile("/bin/sec_index.idx", std::ios::binary);
+        std::ifstream idxFile(NOME_ARQUIVO_INDICE_SEC, std::ios::binary);  // MODIFICADO
         if (!idxFile.is_open()) {
             logError("Nao foi possivel abrir arquivo de indice.");
             continue;
@@ -171,7 +172,7 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
 
         std::cout << "RID=" << actualRID << std::endl;
 
-        std::ifstream dataFile("/data/artigos.dat", std::ios::binary);
+        std::ifstream dataFile(NOME_ARQUIVO_DADOS, std::ios::binary);  // MODIFICADO
         if (dataFile.is_open()) {
             size_t articleIndex = static_cast<size_t>(actualRID);
             size_t blockIndex = articleIndex / REGISTROS_POR_BLOCO;
@@ -224,7 +225,7 @@ int main(int argc, char* argv[]){
     }
     logInfo("Buscando titulo: '" + titulo + "'");
 
-    BPlusTree<long> idx("/bin/sec_index.idx");
+    BPlusTree<long> idx(NOME_ARQUIVO_INDICE_SEC);  // MODIFICADO
     idx.resetStats();
     search_bplus_index(idx, titulo);
     std::cout << "Blocos da árvore lidos: " << idx.getPagesRead() << std::endl;
