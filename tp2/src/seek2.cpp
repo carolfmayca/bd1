@@ -54,6 +54,38 @@ static uint32_t fnv1a32(const std::string& s) {
     return hash;
 }
 
+// Função para corrigir encoding
+std::string fixEncoding(const std::string& str) {
+    std::string result;
+    for (size_t i = 0; i < str.length(); ++i) {
+        unsigned char c = str[i];
+        
+        // Corrige caracteres UTF-8 mal interpretados
+        if (c == 0xE2 && i + 2 < str.length() && 
+            static_cast<unsigned char>(str[i+1]) == 0x80 && 
+            static_cast<unsigned char>(str[i+2]) == 0x94) {
+            result += "—";
+            i += 2;
+        }
+        else if (c == 0xE2 && i + 2 < str.length() && 
+                 static_cast<unsigned char>(str[i+1]) == 0x80 && 
+                 static_cast<unsigned char>(str[i+2]) == 0x99) {
+            result += "'";
+            i += 2;
+        }
+        else if (c >= 32 && c <= 126) {
+            result += c;
+        }
+        else if (c == '\n' || c == '\t') {
+            result += c;
+        }
+        else {
+            result += ' ';
+        }
+    }
+    return result;
+}
+
 // Função para busca usando B+Tree
 bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado) {
     std::string norm = normalize(titulo_buscado.c_str());
@@ -115,12 +147,12 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
                     
                     if (art.ocupado) {
                         std::cout << "ID: " << art.id << std::endl;
-                        std::cout << "Titulo: " << art.titulo << std::endl;
+                        std::cout << "Titulo: " << fixEncoding(art.titulo) << std::endl;
                         std::cout << "Ano: " << art.ano << std::endl;
-                        std::cout << "Autores: " << art.autores << std::endl;
+                        std::cout << "Autores: " << fixEncoding(art.autores) << std::endl;
                         std::cout << "Atualizacao: " << art.atualizacao << std::endl;
                         std::cout << "Citacoes: " << art.citacoes << std::endl;
-                        std::cout << "Snippet: " << art.snippet << std::endl;
+                        std::cout << "Snippet: " << fixEncoding(art.snippet) << std::endl;
                     } else {
                         std::cout << "ERRO: Registro nao ocupado (RID=" << actualRID << ").\n";
                     }

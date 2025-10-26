@@ -21,7 +21,7 @@ void HashingFile::criarArquivos() {
     dataFile.close();
     std::cout << "Arquivo '" << nomeArquivo << "' criado." << std::endl;
 
-    std::string nomeTabela = "/bin/tabela_hash.idx";
+    std::string nomeTabela = "/app/bin/tabela_hash.idx";
     std::ofstream tabela(nomeTabela, std::ios::out | std::ios::binary);
     if (tabela.is_open()) {
         long offset_vazio = -1;
@@ -44,7 +44,7 @@ long HashingFile::inserirArtigo(Artigo& novoArtigo) {
     }
 
     int endereco = novoArtigo.id % TAMANHO_TABELA;
-    std::string nomeTabela = "/bin/tabela_hash.idx";
+    std::string nomeTabela = "/app/bin/tabela_hash.idx";
     std::fstream tabela(nomeTabela, std::ios::in | std::ios::out | std::ios::binary);
     if (!tabela.is_open()) {
         std::cerr << "Erro: Nao foi possivel abrir o arquivo de indice '" << nomeTabela << "'." << std::endl;

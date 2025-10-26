@@ -9,12 +9,13 @@
 #include <string>
 #include <chrono>
 #include <algorithm>
+#include <vector>
 
 // Constantes globais
 const std::string NOME_ARQUIVO_DADOS = "/data/artigos.dat";
-const std::string NOME_ARQUIVO_INDICE_HASH = "/bin/tabela_hash.idx";
-const std::string NOME_ARQUIVO_INDICE_PRIM = "/bin/prim_index.idx";
-const std::string NOME_ARQUIVO_INDICE_SEC = "/bin/sec_index.idx";
+const std::string NOME_ARQUIVO_INDICE_HASH = "/app/bin/tabela_hash.idx";
+const std::string NOME_ARQUIVO_INDICE_PRIM = "/app/bin/prim_index.idx";
+const std::string NOME_ARQUIVO_INDICE_SEC = "/app/bin/sec_index.idx";
 const std::string NOME_CSV_ENTRADA = "/data/artigo.csv";
 const int TAMANHO_TABELA_HASH = 2000000;
 
@@ -302,6 +303,74 @@ static bool insereIdxSec(){
     return true;
 }
 
+// Função para copiar arquivos de índice para o volume persistente
+bool copiarIndicesParaVolume() {
+    std::cout << "\n=== INICIANDO COPIA DE INDICES ===\n";
+    
+    // Lista de arquivos para copiar
+    std::vector<std::pair<std::string, std::string>> arquivos = {
+        {"/app/bin/tabela_hash.idx", "/bin/tabela_hash.idx"},
+        {"/app/bin/prim_index.idx", "/bin/prim_index.idx"},
+        {"/app/bin/sec_index.idx", "/bin/sec_index.idx"}
+    };
+    
+    bool tudoOk = true;
+    
+    for (const auto& par : arquivos) {
+        const std::string& origem = par.first;
+        const std::string& destino = par.second;
+        
+        std::cout << "Tentando copiar: " << origem << " -> " << destino << "\n";
+        
+        std::ifstream src(origem, std::ios::binary);
+        if (!src.is_open()) {
+            std::cout << "ERRO: Arquivo origem " << origem << " nao encontrado!\n";
+            tudoOk = false;
+            continue;
+        }
+        
+        // Verifica tamanho do arquivo origem
+        src.seekg(0, std::ios::end);
+        std::size_t tamanho = src.tellg();
+        src.seekg(0, std::ios::beg);
+        std::cout << "Arquivo origem tem " << tamanho << " bytes\n";
+        
+        std::ofstream dst(destino, std::ios::binary);
+        if (!dst.is_open()) {
+            std::cerr << "ERRO: Nao foi possivel criar arquivo destino " << destino << "\n";
+            src.close();
+            tudoOk = false;
+            continue;
+        }
+        
+        // Copia o arquivo
+        dst << src.rdbuf();
+        src.close();
+        dst.close();
+        
+        // Verifica se a cópia foi bem-sucedida
+        std::ifstream verificacao(destino, std::ios::binary);
+        if (verificacao.is_open()) {
+            verificacao.seekg(0, std::ios::end);
+            std::size_t tamanhoDestino = verificacao.tellg();
+            verificacao.close();
+            
+            if (tamanhoDestino == tamanho) {
+                std::cout << "SUCESSO: Copiado " << tamanho << " bytes para " << destino << "\n";
+            } else {
+                std::cout << "ERRO: Tamanhos diferentes! Origem: " << tamanho << ", Destino: " << tamanhoDestino << "\n";
+                tudoOk = false;
+            }
+        } else {
+            std::cout << "ERRO: Nao foi possivel verificar arquivo copiado " << destino << "\n";
+            tudoOk = false;
+        }
+    }
+    
+    std::cout << "=== COPIA " << (tudoOk ? "CONCLUIDA COM SUCESSO" : "FINALIZADA COM ERROS") << " ===\n";
+    return tudoOk;
+}
+
 int main(){
     // Limpa o ambiente
     remove(NOME_ARQUIVO_DADOS.c_str());
@@ -327,6 +396,11 @@ int main(){
         return 1;
     }
     std::cout << "--- Inserção do indice secundario realizada com sucesso ---\n";
+    
+    // Copia arquivos de índice para o volume persistente
+    if (!copiarIndicesParaVolume()) {
+        std::cerr << "AVISO: Erro ao copiar indices para volume persistente.\n";
+    }
 
     return 0;
 }

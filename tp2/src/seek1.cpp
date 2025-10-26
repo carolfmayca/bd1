@@ -122,7 +122,7 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     SearchResult result = {false, 0, 0, 0, 0};
     
     logInfo("Iniciando busca por ID: " + std::to_string(idBuscado));
-    logInfo("Caminho do arquivo de dados: data/db/artigos.dat");
+    logInfo("Caminho do arquivo de dados: data/artigos.dat");
     logInfo("Caminho do arquivo de índice: bin/prim_index.idx");
 
     long leafOffset = idx.search(idBuscado);
@@ -165,9 +165,9 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     result.primaryIndexBlocksRead = 1;
 
     // Buscar no arquivo de dados
-    std::ifstream dataFile("data/db/artigos.dat", std::ios::binary);
+    std::ifstream dataFile("data/artigos.dat", std::ios::binary);
     if (!dataFile.is_open()) {
-        logError("Erro ao abrir arquivo de dados: data/db/artigos.dat");
+        logError("Erro ao abrir arquivo de dados: data/artigos.dat");
         return result;
     }
 

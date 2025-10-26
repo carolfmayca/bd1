@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 
     // Nomes dos arquivos e parâmetros
     const std::string NOME_ARQUIVO_DADOS = "/data/artigos.dat";
-    const int TAMANHO_TABELA = 10000; // IMPORTANTE: Use o mesmo tamanho de tabela do upload!
+    const int TAMANHO_TABELA = 2000000; // IMPORTANTE: Use o mesmo tamanho de tabela do upload!
     
     try {
         // Converte o argumento da linha de comando de texto para número
