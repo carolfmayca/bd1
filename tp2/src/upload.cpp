@@ -399,5 +399,10 @@ int main(){
     }
     std::cout << "--- Inserção do indice secundario realizada com sucesso ---\n";
 
+    if (!copiarIndicesParaVolume()) {
+        std::cerr << "Erro na copia dos indices para o volume persistente.\n";
+        return 1;
+    }
+
     return 0;
 }

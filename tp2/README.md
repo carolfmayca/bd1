@@ -1,15 +1,17 @@
 # Docker
 **COMANDOS DEVEM SER EXECUTADOS A PARTIR DE `tp2`**
 
-criar imagem do docker: `docker build -t tp2-bd .`
+compila binarios: `make build`
 
-upload: `docker run --rm -v "$(pwd)/data:/data" -v "$(pwd)/bin:/bin" tp2-bd /app/upload`
+criar imagem do docker: `make docker-build`
 
-findrec: `docker run --rm -v "$(pwd)/data:/data" -v "$(pwd)/bin:/bin" tp2-bd /app/findrec <id do artigo>`
+upload: `make docker-run-upload`
 
-seek1: `docker run --rm -v "$(pwd)/data:/data" -v "$(pwd)/bin:/bin" tp2-bd /app/seek1 <ID_DO_ARTIGO>`
+findrec: `make docker-run-findrec ID=<ID_DO_ARTIGO>`
 
-seek2: `docker run --rm -v "$(pwd)/data:/data" -v "$(pwd)/bin:/bin" tp2-bd /app/seek2 <TITULO_DO_ARTIGO>`
+seek1: `make docker-run-seek1 ID=<ID_DO_ARTIGO>`
+
+seek2: `make docker-run-seek2 TITLE="<TÍTULO_DO_ARTIGO>"`
 
 
 # Local
