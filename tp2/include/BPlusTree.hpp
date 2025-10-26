@@ -316,7 +316,7 @@ void BPlusTree<T>::splitLeaf(long nodeOffset, int key, long dataOffset) {
 
     int promoteKey = newLeaf.keys[0];
 
-=    long parentOffset = findParent(rootOffset, nodeOffset); 
+    long parentOffset = findParent(rootOffset, nodeOffset); 
 
     if (nodeOffset == rootOffset) {
         long newRootOffset = newNode(false);
