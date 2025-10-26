@@ -344,8 +344,26 @@ bool copiarIndicesParaVolume() {
             continue;
         }
         
-        // Copia o arquivo
-        dst << src.rdbuf();
+        // Copia o arquivo em chunks para arquivos grandes
+        const size_t BUFFER_SIZE = 1024 * 1024; // 1MB buffer
+        std::vector<char> buffer(BUFFER_SIZE);
+        size_t totalCopiado = 0;
+        
+        while (src.good() && dst.good()) {
+            src.read(buffer.data(), BUFFER_SIZE);
+            std::streamsize bytesLidos = src.gcount();
+            if (bytesLidos > 0) {
+                dst.write(buffer.data(), bytesLidos);
+                dst.flush(); // Force write to disk
+                totalCopiado += bytesLidos;
+                
+                // Log progress for large files
+                if (tamanho > 1000000000 && totalCopiado % (100 * 1024 * 1024) == 0) { // Log every 100MB
+                    std::cout << "Progresso: " << totalCopiado << "/" << tamanho << " bytes\n";
+                }
+            }
+            if (bytesLidos < BUFFER_SIZE) break;
+        }
         src.close();
         dst.close();
         
