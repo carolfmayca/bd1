@@ -88,4 +88,4 @@ index-local: build
 
 # --- Limpeza ---
 clean:
-	rm -rf $(BIN_DIR)/* $(DATA_DIR)/artigos.dat $(DATA_DIR)/db/*
+	rm -rf $(BIN_DIR)/ $(DATA_DIR)/artigos.dat $(DATA_DIR)/db/

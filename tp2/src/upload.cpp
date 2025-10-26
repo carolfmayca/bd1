@@ -287,88 +287,6 @@ static bool insereIdxSec(){
     return true;
 }
 
-// copiar arquivos de índice para o volume persistente
-bool copiarIndicesParaVolume() {
-    std::cout << "\n=== INICIANDO COPIA DE INDICES ===\n";
-    
-    std::vector<std::pair<std::string, std::string>> arquivos = {
-        {"/app/bin/tabela_hash.idx", "/bin/tabela_hash.idx"},
-        {"/app/bin/prim_index.idx", "/bin/prim_index.idx"},
-        {"/app/bin/sec_index.idx", "/bin/sec_index.idx"}
-    };
-    
-    bool tudoOk = true;
-    
-    for (const auto& par : arquivos) {
-        const std::string& origem = par.first;
-        const std::string& destino = par.second;
-        
-        std::cout << "Tentando copiar: " << origem << " -> " << destino << "\n";
-        
-        std::ifstream src(origem, std::ios::binary);
-        if (!src.is_open()) {
-            std::cout << "ERRO: Arquivo origem " << origem << " nao encontrado!\n";
-            tudoOk = false;
-            continue;
-        }
-        
-        src.seekg(0, std::ios::end);
-        std::size_t tamanho = src.tellg();
-        src.seekg(0, std::ios::beg);
-        std::cout << "Arquivo origem tem " << tamanho << " bytes\n";
-        
-        std::ofstream dst(destino, std::ios::binary);
-        if (!dst.is_open()) {
-            std::cerr << "ERRO: Nao foi possivel criar arquivo destino " << destino << "\n";
-            src.close();
-            tudoOk = false;
-            continue;
-        }
-        
-        const size_t BUFFER_SIZE = 1024 * 1024; // 1MB buffer
-        std::vector<char> buffer(BUFFER_SIZE);
-        size_t totalCopiado = 0;
-        
-        while (src.good() && dst.good()) {
-            src.read(buffer.data(), BUFFER_SIZE);
-            std::streamsize bytesLidos = src.gcount();
-            if (bytesLidos > 0) {
-                dst.write(buffer.data(), bytesLidos);
-                dst.flush();
-                totalCopiado += bytesLidos;
-                
-                // Log progress for large files
-                if (tamanho > 1000000000 && totalCopiado % (100 * 1024 * 1024) == 0) { // Log every 100MB
-                    std::cout << "Progresso: " << totalCopiado << "/" << tamanho << " bytes\n";
-                }
-            }
-            if (bytesLidos < BUFFER_SIZE) break;
-        }
-        src.close();
-        dst.close();
-        
-        std::ifstream verificacao(destino, std::ios::binary);
-        if (verificacao.is_open()) {
-            verificacao.seekg(0, std::ios::end);
-            std::size_t tamanhoDestino = verificacao.tellg();
-            verificacao.close();
-            
-            if (tamanhoDestino == tamanho) {
-                std::cout << "SUCESSO: Copiado " << tamanho << " bytes para " << destino << "\n";
-            } else {
-                std::cout << "ERRO: Tamanhos diferentes! Origem: " << tamanho << ", Destino: " << tamanhoDestino << "\n";
-                tudoOk = false;
-            }
-        } else {
-            std::cout << "ERRO: Nao foi possivel verificar arquivo copiado " << destino << "\n";
-            tudoOk = false;
-        }
-    }
-    
-    std::cout << "=== COPIA " << (tudoOk ? "CONCLUIDA COM SUCESSO" : "FINALIZADA COM ERROS") << " ===\n";
-    return tudoOk;
-}
-
 int main(){
     // Limpa o ambiente
     remove(NOME_ARQUIVO_DADOS.c_str());
@@ -398,11 +316,6 @@ int main(){
         return 1;
     }
     std::cout << "--- Inserção do indice secundario realizada com sucesso ---\n";
-
-    if (!copiarIndicesParaVolume()) {
-        std::cerr << "Erro na copia dos indices para o volume persistente.\n";
-        return 1;
-    }
 
     return 0;
 }
