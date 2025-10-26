@@ -141,7 +141,7 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
 
     // Ler o RID do arquivo de índice
     long actualRID = -1;
-    std::ifstream idxFile("bin/prim_index.idx", std::ios::binary);
+    std::ifstream idxFile("/bin/prim_index.idx", std::ios::binary);
     if (!idxFile.is_open()) {
         logError("Erro ao abrir arquivo de índice primário: bin/prim_index.idx");
         return result;
@@ -165,7 +165,7 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     result.primaryIndexBlocksRead = 1;
 
     // Buscar no arquivo de dados
-    std::ifstream dataFile("data/artigos.dat", std::ios::binary);
+    std::ifstream dataFile("/data/artigos.dat", std::ios::binary);
     if (!dataFile.is_open()) {
         logError("Erro ao abrir arquivo de dados: data/artigos.dat");
         return result;
@@ -241,7 +241,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    BPlusTree<long> idx("bin/prim_index.idx");
+    BPlusTree<long> idx("/bin/prim_index.idx");
     idx.resetStats();
     
     logDebug("Índice primário carregado");
