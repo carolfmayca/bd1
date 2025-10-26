@@ -1,5 +1,3 @@
-//fernando
-
 #include "../include/hashing_file.h"
 #include <iostream>
 #include <string>
