@@ -161,11 +161,11 @@ static bool insereIdxPrim(){
 
     // coletar o RID e ID
     while (in.read(reinterpret_cast<char*>(&bloco), blocoSize)) {
-        for (int i = 0; i < bloco.num_registos_usados; i++) {
+        for (int i = 0; i < bloco.num_registros_usados; i++) {
             Artigo& art = bloco.artigos[i];
             if (!art.ocupado) continue;
 
-            long rid = static_cast<long>(blocoIndex * REGISTOS_POR_BLOCO + i);
+            long rid = static_cast<long>(blocoIndex * REGISTROS_POR_BLOCO + i);
             entries.push_back({art.id, rid});
         }
         blocoIndex++;
@@ -232,9 +232,9 @@ static bool insereIdxSec(){
     int titulosValidosExibidos = 0;
     
     while (in.read(reinterpret_cast<char*>(&bloco), blocoSize)) {
-        for (int i = 0; i < REGISTOS_POR_BLOCO && i < bloco.num_registos_usados; i++) {
+        for (int i = 0; i < REGISTROS_POR_BLOCO && i < bloco.num_registros_usados; i++) {
             Artigo& art = bloco.artigos[i];
-            long rid = static_cast<long>(blocoIndex * REGISTOS_POR_BLOCO + i);
+            long rid = static_cast<long>(blocoIndex * REGISTROS_POR_BLOCO + i);
             
             totalRegistrosProcessados++;
             

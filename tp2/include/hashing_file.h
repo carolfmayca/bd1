@@ -3,7 +3,7 @@
 #include <string>
 #include <fstream>
 
-// representa um registo
+// representa um registro
 struct Artigo {
     bool ocupado;
     int id;
@@ -16,12 +16,12 @@ struct Artigo {
 };
 
 // artigos que cabem em um único bloco
-const int REGISTOS_POR_BLOCO = 2;
+const int REGISTROS_POR_BLOCO = 2;
 
 // representa um bloco no disco
 struct Bloco {
-    Artigo artigos[REGISTOS_POR_BLOCO];
-    int num_registos_usados;
+    Artigo artigos[REGISTROS_POR_BLOCO];
+    int num_registros_usados;
     long proximo_bloco_offset;
 };
 

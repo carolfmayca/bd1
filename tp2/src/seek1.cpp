@@ -18,11 +18,11 @@ struct ArticleDisk {
     char snippet[1025];
 };
 
-const int REGISTOS_POR_BLOCO = 2;
+const int REGISTROS_POR_BLOCO = 2;
 
 struct Bloco {
-    ArticleDisk artigos[REGISTOS_POR_BLOCO];
-    int num_registos_usados;
+    ArticleDisk artigos[REGISTROS_POR_BLOCO];
+    int num_registros_usados;
     long proximo_bloco_offset;
 };
 
@@ -169,12 +169,12 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     }
 
     size_t articleIndex = static_cast<size_t>(actualRID);
-    size_t blockIndex = articleIndex / REGISTOS_POR_BLOCO;
-    size_t positionInBlock = articleIndex % REGISTOS_POR_BLOCO;
+    size_t blockIndex = articleIndex / REGISTROS_POR_BLOCO;
+    size_t positionInBlock = articleIndex % REGISTROS_POR_BLOCO;
 
     dataFile.seekg(0, std::ios::end);
     std::streamoff dataSize = dataFile.tellg();
-    size_t totalArticles = (dataSize / sizeof(Bloco)) * REGISTOS_POR_BLOCO;
+    size_t totalArticles = (dataSize / sizeof(Bloco)) * REGISTROS_POR_BLOCO;
 
     if (articleIndex >= totalArticles) {
         logError("RID inválido (fora do tamanho do arquivo de dados): " + std::to_string(actualRID));
@@ -187,7 +187,7 @@ SearchResult search_primary_index(BPlusTree<long>& idx, int idBuscado) {
     if (dataFile.read(reinterpret_cast<char*>(&bloco), sizeof(Bloco))) {
         result.dataBlocksRead = 1;
         
-        if (positionInBlock < bloco.num_registos_usados) {
+        if (positionInBlock < bloco.num_registros_usados) {
             ArticleDisk& art = bloco.artigos[positionInBlock];
             if (art.ocupado) {
                 logInfo("Artigo encontrado com sucesso");

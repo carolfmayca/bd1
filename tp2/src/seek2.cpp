@@ -61,11 +61,11 @@ struct ArticleDisk {
     char snippet[1025];
 };
 
-const int REGISTOS_POR_BLOCO = 2;
+const int REGISTROS_POR_BLOCO = 2;
 
 struct Bloco {
-    ArticleDisk artigos[REGISTOS_POR_BLOCO];
-    int num_registos_usados;
+    ArticleDisk artigos[REGISTROS_POR_BLOCO];
+    int num_registros_usados;
     long proximo_bloco_offset;
 };
 
@@ -174,13 +174,13 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
         std::ifstream dataFile("/data/artigos.dat", std::ios::binary);
         if (dataFile.is_open()) {
             size_t articleIndex = static_cast<size_t>(actualRID);
-            size_t blockIndex = articleIndex / REGISTOS_POR_BLOCO;
-            size_t positionInBlock = articleIndex % REGISTOS_POR_BLOCO;
+            size_t blockIndex = articleIndex / REGISTROS_POR_BLOCO;
+            size_t positionInBlock = articleIndex % REGISTROS_POR_BLOCO;
 
             Bloco bloco{};
             dataFile.seekg(blockIndex * sizeof(Bloco));
             if (dataFile.read(reinterpret_cast<char*>(&bloco), sizeof(Bloco))) {
-                if (positionInBlock < REGISTOS_POR_BLOCO && positionInBlock < bloco.num_registos_usados) {
+                if (positionInBlock < REGISTROS_POR_BLOCO && positionInBlock < bloco.num_registros_usados) {
                     ArticleDisk& art = bloco.artigos[positionInBlock];
 
                     if (art.ocupado) {
@@ -195,7 +195,7 @@ bool search_bplus_index(BPlusTree<long>& idx, const std::string& titulo_buscado)
                         logWarn("Registro nao ocupado (RID=" + std::to_string(actualRID) + ").");
                     }
                 } else {
-                    logError("Posicao invalida no bloco (posicao=" + std::to_string(positionInBlock) + ", registos_usados=" + std::to_string(bloco.num_registos_usados) + ").");
+                    logError("Posicao invalida no bloco (posicao=" + std::to_string(positionInBlock) + ", registros_usados=" + std::to_string(bloco.num_registros_usados) + ").");
                 }
             } else {
                 logError("Nao foi possivel ler bloco do arquivo (blockIndex=" + std::to_string(blockIndex) + ").");

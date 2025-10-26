@@ -59,7 +59,7 @@ long HashingFile::inserirArtigo(Artigo& novoArtigo) {
         // cadeia vazia, criamos um novo bloco
         Bloco novo_bloco = {};
         novo_bloco.artigos[0] = novoArtigo;
-        novo_bloco.num_registos_usados = 1;
+        novo_bloco.num_registros_usados = 1;
         novo_bloco.proximo_bloco_offset = -1;
 
         arquivo.seekg(0, std::ios::end);
@@ -77,9 +77,9 @@ long HashingFile::inserirArtigo(Artigo& novoArtigo) {
             arquivo.seekg(offset_bloco_atual);
             arquivo.read(reinterpret_cast<char*>(&bloco_temp), sizeof(Bloco));
 
-            if (bloco_temp.num_registos_usados < REGISTOS_POR_BLOCO) {
-                bloco_temp.artigos[bloco_temp.num_registos_usados] = novoArtigo;
-                bloco_temp.num_registos_usados++;
+            if (bloco_temp.num_registros_usados < REGISTROS_POR_BLOCO) {
+                bloco_temp.artigos[bloco_temp.num_registros_usados] = novoArtigo;
+                bloco_temp.num_registros_usados++;
                 arquivo.seekp(offset_bloco_atual);
                 arquivo.write(reinterpret_cast<const char*>(&bloco_temp), sizeof(Bloco));
                 break;
@@ -87,7 +87,7 @@ long HashingFile::inserirArtigo(Artigo& novoArtigo) {
                 // bloco está cheio e é o último da cadeia, cria um novo bloco de overflow
                 Bloco novo_bloco_overflow = {};
                 novo_bloco_overflow.artigos[0] = novoArtigo;
-                novo_bloco_overflow.num_registos_usados = 1;
+                novo_bloco_overflow.num_registros_usados = 1;
                 novo_bloco_overflow.proximo_bloco_offset = -1;
 
                 arquivo.seekg(0, std::ios::end);
@@ -129,7 +129,7 @@ Artigo HashingFile::buscarPorId(int id, int& blocosLidos) {
         arquivo.read(reinterpret_cast<char*>(&bloco_temp), sizeof(Bloco));
         blocosLidos++;
 
-        for (int i = 0; i < bloco_temp.num_registos_usados; ++i) {
+        for (int i = 0; i < bloco_temp.num_registros_usados; ++i) {
             if (bloco_temp.artigos[i].id == id) {
                 return bloco_temp.artigos[i];
             }
